@@ -1,0 +1,30 @@
+# Environment variables and secrets
+.env
+*.env
+.env.*
+!.env.example
+
+# Node dependencies and build
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+env/
+venv/
+ENV/
+*.sqlite3
+db.sqlite3-journal
+
+# Static collected files in production
+staticfiles/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

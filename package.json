@@ -1,0 +1,27 @@
+{
+  "name": "giims-student-portal",
+  "version": "1.0.0",
+  "description": "A web-based student admission and fee-management portal for GIIMS, built with Django, PostgreSQL, HTMX, and Alpine.js.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build:js": "node -e \"const fs = require('fs'); fs.mkdirSync('static/dist/js', { recursive: true }); fs.copyFileSync('node_modules/htmx.org/dist/htmx.min.js', 'static/dist/js/htmx.min.js'); fs.copyFileSync('node_modules/alpinejs/dist/cdn.min.js', 'static/dist/js/alpine.min.js'); console.log('HTMX and Alpine.js copied to static/dist/js/');\"",
+    "build:css": "tailwindcss -i ./static/src/input.css -o ./static/dist/css/app.css --minify",
+    "watch:css": "tailwindcss -i ./static/src/input.css -o ./static/dist/css/app.css --watch",
+    "build": "npm run build:js && npm run build:css"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  },
+  "dependencies": {
+    "alpinejs": "^3.17.5",
+    "htmx.org": "^2.0.11"
+  }
+}

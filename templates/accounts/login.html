@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In | GIIMS Student Portal{% endblock %}
+
+{% block content %}
+<div class="flex min-h-[75vh] flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-600 font-bold text-2xl text-white shadow-lg shadow-indigo-500/30">
+            G
+        </div>
+        <h2 class="mt-6 text-center text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            GIIMS Portal Login
+        </h2>
+        <p class="mt-2 text-center text-sm text-slate-500">
+            Sign in with your authorized staff or administrator credentials
+        </p>
+    </div>
+
+    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="rounded-2xl border border-slate-200 bg-white px-6 py-8 shadow-sm sm:px-10">
+            
+            {% if form.errors %}
+                <div class="mb-6 rounded-lg border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700">
+                    <p class="font-semibold">Authentication failed</p>
+                    <p class="mt-1">Please verify your username and password and try again.</p>
+                </div>
+            {% endif %}
+
+            <form method="POST" action="{% url 'login' %}" class="space-y-5">
+                {% csrf_token %}
+                
+                <div>
+                    <label for="{{ form.username.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                        Username
+                    </label>
+                    <div class="mt-1.5">
+                        {{ form.username }}
+                    </div>
+                    {% if form.username.errors %}
+                        <p class="mt-1 text-xs text-rose-600">{{ form.username.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between">
+                        <label for="{{ form.password.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                            Password
+                        </label>
+                    </div>
+                    <div class="mt-1.5">
+                        {{ form.password }}
+                    </div>
+                    {% if form.password.errors %}
+                        <p class="mt-1 text-xs text-rose-600">{{ form.password.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" 
+                            class="flex w-full justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+                        Sign In to GIIMS
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-6 border-t border-slate-100 pt-4 text-center">
+                <p class="text-xs text-slate-400">
+                    Restricted Access &bull; Role-based and Centre-scoped Authorization
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
