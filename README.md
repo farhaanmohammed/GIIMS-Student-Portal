@@ -3,15 +3,21 @@
 A web-based student admission and fee-management portal for GIIMS, built
 with Django, PostgreSQL, HTMX, and Alpine.js.
 
-> **Project status:** Phase 1 Foundation implemented (Settings, PostgreSQL,
-> Custom User model, Centre scoping, Authentication, Tailwind CSS v4, HTMX,
-> Alpine.js, Ruff lint/format, and test suite). Subsequent domain modules
-> are implemented in iterative phases following `docs/PROJECT_SPEC.md`.
+> **Project status:** Phase 1 Foundation and Phase 2 Academic Masters
+> implemented. Phase 1 delivered settings, PostgreSQL, the custom `User`
+> model, centre scoping, authentication, Tailwind CSS v4, HTMX, Alpine.js,
+> Ruff, and the test suite. Phase 2 delivered academic years, courses, and
+> centre-scoped batch management under `/academics/`, with role-gated
+> writes. Subsequent domain modules are implemented in iterative phases
+> following `docs/PROJECT_SPEC.md`.
 
 ## What the application will do
 
 -   Capture student details and admission/joining information.
--   Manage centres, academic years, courses, and batches.
+-   Manage centres, academic years, courses, and batches. Academic-year,
+    course, and batch masters are available at `/academics/`
+    (`ADMIN` and `MANAGEMENT` can create, edit, and toggle them; all
+    authenticated roles can view them).
 -   Create admission-specific fee plans and installment schedules.
 -   Record payments and generate traceable receipts.
 -   Show student fee ledgers and calculate outstanding/overdue amounts.
@@ -206,10 +212,10 @@ process, not automatically on every production web-worker startup.
 
 ## Development milestones
 
-1.  Project bootstrap, settings, database, authentication, and access
-    model.
-2.  Centre, academic year, course, and batch masters.
-3.  Student master and admission workflow.
+1.  **Done (Phase 1):** Project bootstrap, settings, database,
+    authentication, and access model.
+2.  **Done (Phase 2):** Centre, academic year, course, and batch masters.
+3.  **Up next (Phase 3):** Student master and admission workflow.
 4.  Fee plans, installments, payments, allocations, and receipts.
 5.  Student ledger and collection/outstanding reports.
 6.  Audit trail, security review, tests, and deployment.

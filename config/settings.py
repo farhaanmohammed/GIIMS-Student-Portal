@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # GIIMS Core & Domain Applications
     "apps.core",
     "apps.centres",
+    "apps.academics",
     "apps.accounts",
 ]
 

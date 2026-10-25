@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Academic Years | GIIMS Student Portal{% endblock %}
+
+{% block extra_head %}
+<style>
+    .htmx-indicator { display: none; }
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator { display: inline-flex; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+    {% if messages %}
+        <div class="space-y-2" role="status" aria-live="polite">
+            {% for message in messages %}
+                <div class="rounded-lg border px-4 py-3 text-sm {% if message.tags == 'error' %}border-rose-200 bg-rose-50 text-rose-800{% else %}border-emerald-200 bg-emerald-50 text-emerald-800{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Academic Years</h1>
+            <p class="mt-1 text-sm text-slate-500">Portal-wide academic year master records and enrolment status.</p>
+        </div>
+        {% if can_manage %}
+            <a href="{% url 'academics:academic_year_create' %}"
+               class="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                New academic year
+            </a>
+        {% endif %}
+    </div>
+
+    <form method="get"
+          action="{% url 'academics:academic_year_list' %}"
+          hx-get="{% url 'academics:academic_year_list' %}"
+          hx-target="#academic-year-table"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          hx-trigger="change, submit"
+          class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div class="w-full sm:w-56">
+                <label for="academic-year-status" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Status</label>
+                <select id="academic-year-status" name="is_active"
+                        class="mt-1.5 block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-slate-900 shadow-xs focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600 sm:text-sm">
+                    <option value="" {% if not filters.is_active %}selected{% endif %}>All statuses</option>
+                    <option value="1" {% if filters.is_active == "1" %}selected{% endif %}>Active</option>
+                    <option value="0" {% if filters.is_active == "0" %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-3">
+                <button type="submit"
+                        class="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+                    Apply filters
+                </button>
+                {% if filters.is_active %}
+                    <a href="{% url 'academics:academic_year_list' %}"
+                       class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Clear</a>
+                {% endif %}
+                <span class="htmx-indicator items-center gap-1.5 text-xs text-slate-500" role="status">
+                    <svg class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
+                    </svg>
+                    Updating
+                </span>
+            </div>
+        </div>
+    </form>
+
+    <div class="rounded-xl border border-slate-200 bg-white shadow-xs">
+        <div id="academic-year-table" aria-live="polite">
+            {% include "academics/partials/_academic_year_table.html" %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

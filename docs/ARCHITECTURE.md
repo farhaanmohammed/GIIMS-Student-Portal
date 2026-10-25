@@ -20,6 +20,8 @@ Browser -> Django URL/view -> form validation and authorization -> service layer
 
 Create apps as needed; do not generate empty apps solely to match a diagram. Keep views thin and put multi-model business operations in services. Use selectors/query helpers where they make complex read logic reusable.
 
+`academics` owns the portal-wide `AcademicYear` and `Course` masters and the centre-scoped `Batch` entity, with list/create/update/toggle views under `/academics/`. Reads are open to every authenticated role, writes require `ADMIN` or `MANAGEMENT`, and batch access is filtered through `Batch.objects.for_user()`. Fee/pricing templates and seat-count enforcement deliberately live outside this app.
+
 ## Multi-centre access
 Use a shared database with explicit centre relationships. Enforce centre scoping server-side in all queries and mutations. Cross-centre visibility must be explicitly granted.
 
