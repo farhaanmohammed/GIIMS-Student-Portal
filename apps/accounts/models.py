@@ -76,15 +76,27 @@ class User(AbstractUser):
 
     def can_access_centre(self, centre: Any) -> bool:
         """
-        Checks whether the user has access to a specific centre object or centre code.
+        Checks whether the user has access to a specific centre object, pk, or code.
+
+        Non-object identifiers are resolved against active centres so an inactive
+        centre can never be authorized by passing only its primary key.
         """
         if not centre:
             return False
-        if self.has_all_centres_access:
-            return getattr(centre, "is_active", True)
 
-        centre_pk = getattr(centre, "pk", centre)
-        return self.centres.filter(pk=centre_pk, is_active=True).exists()
+        from apps.centres.models import Centre
+
+        if not isinstance(centre, Centre):
+            lookup = {"pk": centre} if isinstance(centre, int) else {"code": str(centre)}
+            centre = Centre.objects.filter(**lookup).first()
+            if centre is None:
+                return False
+
+        if not centre.is_active:
+            return False
+        if self.has_all_centres_access:
+            return True
+        return self.centres.filter(pk=centre.pk, is_active=True).exists()
 
     @property
     def is_admin_role(self) -> bool:

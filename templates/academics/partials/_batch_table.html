@@ -1,0 +1,147 @@
+{% if batches %}
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3">
+        <p class="text-xs text-slate-500">
+            Showing <strong class="font-semibold text-slate-700">{{ page_obj.start_index }}&ndash;{{ page_obj.end_index }}</strong>
+            of <strong class="font-semibold text-slate-700">{{ total_count }}</strong> batch{{ total_count|pluralize }}
+        </p>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <caption class="sr-only">Batches scoped to your accessible centres</caption>
+            <thead class="bg-slate-50">
+                <tr>
+                    <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Centre</th>
+                    <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Course</th>
+                    <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Academic year</th>
+                    <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Batch code</th>
+                    <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Dates</th>
+                    <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Capacity</th>
+                    <th scope="col" class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+                    <th scope="col" class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 bg-white">
+                {% for batch in batches %}
+                    <tr class="hover:bg-slate-50/60">
+                        <td class="whitespace-nowrap px-5 py-3">
+                            <p class="font-medium text-slate-900">{{ batch.centre.name }}</p>
+                            <p class="text-xs text-slate-500">{{ batch.centre.code }}</p>
+                        </td>
+                        <td class="whitespace-nowrap px-5 py-3">
+                            <p class="font-medium text-slate-900">{{ batch.course.name }}</p>
+                            <p class="font-mono text-xs text-slate-500">{{ batch.course.code }}</p>
+                        </td>
+                        <td class="whitespace-nowrap px-5 py-3 text-slate-600">{{ batch.academic_year.label }}</td>
+                        <td class="whitespace-nowrap px-5 py-3 font-mono text-xs font-semibold text-slate-900">{{ batch.code }}</td>
+                        <td class="whitespace-nowrap px-5 py-3 text-slate-600">
+                            <span class="block">{{ batch.start_date|date:"d M Y" }}</span>
+                            <span class="block text-xs text-slate-400">to {{ batch.end_date|date:"d M Y" }}</span>
+                        </td>
+                        <td class="whitespace-nowrap px-5 py-3">
+                            {% if batch.capacity is not None %}
+                                <span class="text-slate-600">{{ batch.capacity }}</span>
+                            {% else %}
+                                <span class="text-xs text-slate-400">Not set</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-5 py-3">
+                            {% if batch.is_active %}
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
+                                    Active
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/20">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden="true"></span>
+                                    Inactive
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-5 py-3 text-right">
+                            {% if can_manage %}
+                                <div class="inline-flex items-center gap-3">
+                                    <a href="{% url 'academics:batch_update' batch.pk %}"
+                                       class="text-sm font-medium text-indigo-600 hover:text-indigo-500">Edit</a>
+                                    <form method="post"
+                                          action="{% url 'academics:batch_toggle' batch.pk %}"
+                                          class="inline-flex"
+                                          hx-post="{% url 'academics:batch_toggle' batch.pk %}"
+                                          hx-confirm="{% if batch.is_active %}Deactivate{% else %}Activate{% endif %} batch {{ batch.code }}?"
+                                          hx-swap="none"
+                                          hx-on::after-request="if (event.detail.successful) window.location.reload()">
+                                        {% csrf_token %}
+                                        <button type="submit"
+                                                class="text-sm font-medium {% if batch.is_active %}text-rose-600 hover:text-rose-500{% else %}text-emerald-600 hover:text-emerald-500{% endif %}">
+                                            {% if batch.is_active %}Deactivate{% else %}Activate{% endif %}
+                                        </button>
+                                    </form>
+                                </div>
+                            {% else %}
+                                <span class="text-xs text-slate-400">&mdash;</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="px-6 py-12 text-center">
+        <svg class="mx-auto h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
+        </svg>
+        {% if filters.centre or filters.academic_year or filters.is_active %}
+            <h3 class="mt-3 text-sm font-semibold text-slate-900">No batches match your filters</h3>
+            <p class="mt-1 text-sm text-slate-500">Try a different centre, academic year, or status.</p>
+            <a href="{% url 'academics:batch_list' %}" class="mt-4 inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500">Clear filters</a>
+        {% else %}
+            <h3 class="mt-3 text-sm font-semibold text-slate-900">No batches yet</h3>
+            <p class="mt-1 text-sm text-slate-500">Add a batch to schedule a course intake for an academic year.</p>
+            {% if can_manage %}
+                <a href="{% url 'academics:batch_create' %}"
+                   class="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 transition-colors">
+                    Add batch
+                </a>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endif %}
+
+{% if is_paginated %}
+    <nav aria-label="Batch pagination" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3">
+        <p class="text-xs text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</p>
+        <div class="flex items-center gap-1">
+            {% if page_obj.has_previous %}
+                <a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.previous_page_number }}"
+                   hx-get="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.previous_page_number }}"
+                   hx-target="#batch-table" hx-swap="innerHTML" hx-push-url="true"
+                   class="rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Previous</a>
+            {% else %}
+                <span class="rounded-md px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-inset ring-slate-200">Previous</span>
+            {% endif %}
+
+            {% for number in page_range %}
+                {% if number == page_obj.paginator.ELLIPSIS %}
+                    <span class="px-2 text-xs text-slate-400" aria-hidden="true">&hellip;</span>
+                {% elif number == page_obj.number %}
+                    <span aria-current="page" class="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white">{{ number }}</span>
+                {% else %}
+                    <a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ number }}"
+                       hx-get="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ number }}"
+                       hx-target="#batch-table" hx-swap="innerHTML" hx-push-url="true"
+                       class="rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-300 hover:bg-slate-50">{{ number }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.next_page_number }}"
+                   hx-get="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.next_page_number }}"
+                   hx-target="#batch-table" hx-swap="innerHTML" hx-push-url="true"
+                   class="rounded-md px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Next</a>
+            {% else %}
+                <span class="rounded-md px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-inset ring-slate-200">Next</span>
+            {% endif %}
+        </div>
+    </nav>
+{% endif %}

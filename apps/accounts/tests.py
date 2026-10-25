@@ -72,6 +72,31 @@ class UserModelTests(TestCase):
         self.assertTrue(staff.has_all_centres_access)
         self.assertTrue(staff.can_access_centre(self.centre_aluva))
 
+    def test_can_access_centre_accepts_primary_key_and_code(self):
+        manager = User.objects.create_user(
+            username="pk_manager",
+            password="Password123!",
+            role=User.Role.MANAGEMENT,
+        )
+        self.assertTrue(manager.can_access_centre(self.centre_kochi.pk))
+        self.assertTrue(manager.can_access_centre("KC-01"))
+        self.assertFalse(manager.can_access_centre(999999))
+        self.assertFalse(manager.can_access_centre("UNKNOWN"))
+        self.assertFalse(manager.can_access_centre(None))
+
+    def test_can_access_centre_rejects_inactive_centre_by_pk_and_code(self):
+        user = User.objects.create_user(
+            username="inactive_scope_admin",
+            password="Password123!",
+            role=User.Role.ADMIN,
+        )
+        self.centre_kochi.is_active = False
+        self.centre_kochi.save()
+
+        self.assertFalse(user.can_access_centre(self.centre_kochi))
+        self.assertFalse(user.can_access_centre(self.centre_kochi.pk))
+        self.assertFalse(user.can_access_centre("KC-01"))
+
 
 class AuthenticationFlowTests(TestCase):
     def setUp(self):
