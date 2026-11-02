@@ -42,6 +42,29 @@
       {% endif %}
     </dl>
   </div>
+  {% if admission.status == 'ENROLLED' %}
+  <div class="bg-white shadow rounded-lg p-6 mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+      <h2 class="text-lg font-medium text-gray-900">Fee Plans</h2>
+      {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'MANAGEMENT' %}
+        {% if not admission.fee_plans.exists %}
+          <a href="{% url 'fees:fee_plan_create' %}?admission={{ admission.pk }}" class="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm">Create fee plan</a>
+        {% endif %}
+      {% endif %}
+    </div>
+    <ul class="space-y-2">
+      {% for fee_plan in admission.fee_plans.all %}
+        <li class="text-sm">
+          <a href="{% url 'fees:fee_plan_detail' fee_plan.pk %}" class="font-medium text-indigo-600 hover:text-indigo-900">Version {{ fee_plan.version }}</a>
+          <span class="ml-2 text-gray-500">{{ fee_plan.get_status_display }}</span>
+          <span class="ml-2 text-gray-500">{{ fee_plan.total_payable|floatformat:2 }} {{ fee_plan.currency }}</span>
+        </li>
+      {% empty %}
+        <li class="text-sm text-gray-500">No fee plan has been created for this admission.</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
   {% if admission.status == 'ENQUIRED' %}
     {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'MANAGEMENT' or request.user.role == 'ADMISSIONS' %}
     <form method="post" action="{% url 'admissions:enroll' admission.pk %}">

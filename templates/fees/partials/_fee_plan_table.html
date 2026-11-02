@@ -1,0 +1,58 @@
+{% if total_count %}
+  <p class="mb-2 text-sm text-gray-500">{{ total_count }} plan{{ total_count|pluralize }}</p>
+{% endif %}
+<div class="bg-white shadow rounded-lg overflow-hidden">
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course / Batch</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centre</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total payable</th>
+        <th class="px-6 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="bg-white divide-y divide-gray-200">
+      {% for fee_plan in fee_plans %}
+        <tr>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+            {{ fee_plan.admission.student.get_full_name }}
+            <span class="block text-xs text-gray-500">{{ fee_plan.admission.student.student_id|default:"No student ID" }}</span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ fee_plan.admission.course.code }} / {{ fee_plan.admission.batch.code }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ fee_plan.admission.centre.code }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">v{{ fee_plan.version }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span class="px-2 py-1 text-xs rounded-full {% if fee_plan.status == 'APPROVED' %}bg-green-100 text-green-800{% elif fee_plan.status == 'DRAFT' %}bg-yellow-100 text-yellow-800{% elif fee_plan.status == 'SUPERSEDED' %}bg-slate-100 text-slate-700{% else %}bg-gray-100 text-gray-800{% endif %}">
+              {{ fee_plan.get_status_display }}
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">{{ fee_plan.total_payable|floatformat:2 }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <a href="{% url 'fees:fee_plan_detail' fee_plan.pk %}" class="text-indigo-600 hover:text-indigo-900">View</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">No fee plans found.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+  <nav class="mt-4 flex items-center justify-between" aria-label="Fee plan pagination">
+    <a class="px-3 py-2 rounded-md border text-sm {% if not page_obj.has_previous %}pointer-events-none opacity-40{% endif %}"
+       href="?{{ querystring }}{% if querystring %}&amp;{% endif %}page={{ page_obj.previous_page_number }}">
+      Previous
+    </a>
+    <span class="text-sm text-gray-600">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    <a class="px-3 py-2 rounded-md border text-sm {% if not page_obj.has_next %}pointer-events-none opacity-40{% endif %}"
+       href="?{{ querystring }}{% if querystring %}&amp;{% endif %}page={{ page_obj.next_page_number }}">
+      Next
+    </a>
+  </nav>
+{% endif %}

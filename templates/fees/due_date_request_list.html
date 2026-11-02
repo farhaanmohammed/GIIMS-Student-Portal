@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Due-Date Requests - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold text-gray-900">Due-Date Change Requests</h1>
+    <p class="mt-1 text-sm text-gray-500">Pending requests from admissions staff. Approval creates a permanent, append-only revision.</p>
+  </div>
+
+  {% if messages %}
+    <div class="mb-4 space-y-2">
+      {% for message in messages %}
+        <div class="rounded-md px-4 py-3 text-sm {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200{% else %}bg-green-50 text-green-800 border border-green-200{% endif %}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Installment</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Change</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Decision</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {% for change_request in due_date_requests %}
+          <tr>
+            <td class="px-4 py-4 text-sm text-gray-900">
+              {{ change_request.installment.fee_plan.admission.student.get_full_name }}
+              <span class="block text-xs text-gray-500">{{ change_request.installment.fee_plan.admission.centre.code }}</span>
+            </td>
+            <td class="px-4 py-4 text-sm text-gray-900">
+              #{{ change_request.installment.sequence }} {{ change_request.installment.description }}
+              <span class="block text-xs text-gray-500">{{ change_request.installment.amount|floatformat:2 }}</span>
+            </td>
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+              {{ change_request.previous_due_date|date:"d M Y"|default:"none" }} &rarr; {{ change_request.proposed_due_date|date:"d M Y" }}
+            </td>
+            <td class="px-4 py-4 text-sm text-gray-600">{{ change_request.reason }}</td>
+            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+              {{ change_request.requested_by }}
+              <span class="block text-xs text-gray-400">{{ change_request.requested_at|date:"d M Y H:i" }}</span>
+            </td>
+            <td class="px-4 py-4 text-sm">
+              <form method="post" action="{% url 'fees:due_date_request_decide' change_request.pk %}" class="space-y-2">
+                {% csrf_token %}
+                <label class="block text-xs text-gray-600" for="note-{{ change_request.pk }}">Decision note (optional)</label>
+                <textarea id="note-{{ change_request.pk }}" name="note" rows="2" class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"></textarea>
+                <div class="flex gap-2">
+                  <button type="submit" name="decision" value="approve" class="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700">Approve</button>
+                  <button type="submit" name="decision" value="reject" class="px-3 py-1.5 border border-red-300 text-red-700 rounded-md hover:bg-red-50">Reject</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No pending due-date change requests.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Fee Plans - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold text-gray-900">Fee Plans &amp; Schedules</h1>
+      <p class="mt-1 text-sm text-gray-500">Versioned, centre-scoped fee structures with derived overdue balances.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'MANAGEMENT' or request.user.role == 'ACCOUNTS' %}
+        <a href="{% url 'fees:due_date_request_list' %}" class="px-4 py-2 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-50">Due-Date Requests</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <form method="get" class="mb-4 flex flex-wrap gap-2">
+    <input type="text" name="q" value="{{ filters.q }}" placeholder="Search by name, student ID, phone..." class="px-3 py-2 border rounded-md">
+    <select name="status" class="px-3 py-2 border rounded-md">
+      <option value="">All Statuses</option>
+      {% for value, label in status_options %}
+        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="px-4 py-2 bg-gray-100 rounded-md">Filter</button>
+  </form>
+
+  <div id="fee-plan-table">
+    {% include "fees/partials/_fee_plan_table.html" %}
+  </div>
+</div>
+{% endblock %}

@@ -3,7 +3,6 @@ from typing import ClassVar
 from django.conf import settings
 from django.db import models
 
-from apps.core.models import TimeStampedModel
 from apps.core.permissions import CentreScopedModel
 
 

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Change Due Date - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6">
+    <p class="text-sm text-gray-500">
+      <a href="{% url 'fees:fee_plan_detail' fee_plan.pk %}" class="text-indigo-600 hover:text-indigo-900">Fee plan v{{ fee_plan.version }}</a>
+    </p>
+    <h1 class="mt-1 text-2xl font-semibold text-gray-900">
+      {% if can_apply %}Apply due-date revision{% else %}Request due-date change{% endif %}
+    </h1>
+    <p class="mt-1 text-sm text-gray-500">
+      {{ fee_plan.admission.student.get_full_name }} |
+      #{{ installment.sequence }} {{ installment.description }} |
+      {{ installment.amount|floatformat:2 }} {{ fee_plan.currency }}
+    </p>
+  </div>
+
+  <div class="bg-white shadow rounded-lg p-6 mb-6">
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <dt class="text-sm text-gray-500">Original suggested due date</dt>
+        <dd class="mt-1 text-sm font-medium text-gray-900">{{ installment.original_due_date|date:"d M Y" }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm text-gray-500">Current effective due date</dt>
+        <dd class="mt-1 text-sm font-medium text-gray-900">{{ current_due_date|date:"d M Y" }}</dd>
+      </div>
+    </dl>
+    <p class="mt-4 text-xs text-gray-500">
+      The original date is never rewritten. A revision may move the date earlier or later and never changes the installment amount.
+      {% if not can_apply %}Your request must be approved by an authorised approver before it takes effect.{% endif %}
+    </p>
+  </div>
+
+  <form method="post" class="bg-white shadow rounded-lg p-6 space-y-4">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+    <div>
+      <label for="{{ form.proposed_due_date.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.proposed_due_date.label }}</label>
+      {{ form.proposed_due_date }}
+      {% if form.proposed_due_date.errors %}<p class="mt-1 text-sm text-red-700">{{ form.proposed_due_date.errors }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="{{ form.reason.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.reason.label }}</label>
+      {{ form.reason }}
+      <p class="mt-1 text-xs text-gray-500">{{ form.reason.help_text }}</p>
+      {% if form.reason.errors %}<p class="mt-1 text-sm text-red-700">{{ form.reason.errors }}</p>{% endif %}
+    </div>
+    <div class="flex justify-end gap-3">
+      <a href="{% url 'fees:fee_plan_detail' fee_plan.pk %}" class="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-50">Cancel</a>
+      <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+        {% if can_apply %}Apply revision{% else %}Submit request{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
