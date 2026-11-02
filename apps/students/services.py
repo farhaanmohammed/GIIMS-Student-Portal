@@ -1,59 +1,72 @@
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
-from apps.students.models import Student
+from apps.students.models import Student, StudentIdSequence
+
+ID_SEQUENCE_PADDING = 3
 
 
-def generate_student_id_for_enrollment(admission):
+def build_student_id_prefix(admission) -> str:
     """
-    Generate and assign student_id on enrollment.
-    Format: {Centre.code}-{Batch.code}-{Course.code}_{NNN}
-    Sequence resets per academic year context, scoped by prefix.
-    Always 3 digits, zero-padded. Never changes once assigned.
+    Return the ID prefix for an admission: ``{centre}-{batch}-{course}``.
+
+    Codes are captured at enrollment time; changing a master record later
+    never rewrites an already issued student ID.
     """
-    student = admission.student
-    if student.student_id:
-        return student.student_id
+    return "-".join(
+        (
+            admission.centre.code,
+            admission.batch.code,
+            admission.course.code,
+        )
+    )
 
-    centre_code = admission.centre.code
-    batch_code = admission.batch.code
-    course_code = admission.course.code
-    academic_year = admission.academic_year
 
-    prefix = f"{centre_code}-{batch_code}-{course_code}_"
-    prefix_full = f"{centre_code}-{batch_code}-{course_code}"
+def format_student_id(prefix: str, number: int) -> str:
+    """Render a student ID, zero-padded to at least three digits."""
+    return f"{prefix}_{number:0{ID_SEQUENCE_PADDING}d}"
 
+
+def _next_sequence_number(prefix: str) -> int:
+    """
+    Reserve and return the next number for ``prefix``.
+
+    Must run inside a transaction. The sequence row is locked so concurrent
+    enrollments serialize instead of allocating the same number.
+    """
+    try:
+        with transaction.atomic():
+            sequence, _ = StudentIdSequence.objects.select_for_update().get_or_create(prefix=prefix)
+    except IntegrityError:
+        # Another transaction created the row first; retry against the
+        # now-existing sequence.
+        sequence = StudentIdSequence.objects.select_for_update().get(prefix=prefix)
+
+    sequence.last_number += 1
+    sequence.save(update_fields=["last_number", "updated_at"])
+    return sequence.last_number
+
+
+def generate_student_id_for_enrollment(admission) -> str:
+    """
+    Assign and return the permanent student ID for an admission.
+
+    Format: ``{centre.code}-{batch.code}-{course.code}_{NNN}`` (for example
+    ``TVM-ASP-AD_001``). Called once when the admission becomes ``ENROLLED``.
+    Idempotent: an already assigned ID is returned unchanged.
+    """
     with transaction.atomic():
-        # Lock to prevent race conditions
-        student = Student.objects.select_for_update().get(pk=student.pk)
-
+        # ``admission.student_id`` is the FK value (student PK); the readable
+        # identifier lives on ``student.student_id``.
+        student = Student.objects.select_for_update().get(pk=admission.student_id)
         if student.student_id:
             return student.student_id
 
-        # Find max existing number for this exact prefix in context
-        # Sequence resets every year; batch changes each year so naturally unique
-        # But also filter by academic year of admissions to be explicit
-        existing = (
-            Student.objects.filter(
-                student_id__startswith=prefix_full,
-                admissions__academic_year=academic_year,
-            )
-            .select_for_update()
-            .values_list("student_id", flat=True)
-        )
+        prefix = build_student_id_prefix(admission)
+        number = _next_sequence_number(prefix)
+        while Student.objects.filter(student_id=format_student_id(prefix, number)).exists():
+            # Defensive: never reuse an ID that already exists.
+            number = _next_sequence_number(prefix)
 
-        max_num = 0
-        for sid in existing:
-            if sid and sid.startswith(prefix):
-                try:
-                    num_part = sid.split("_")[-1]
-                    num = int(num_part)
-                    if num > max_num:
-                        max_num = num
-                except (ValueError, IndexError):
-                    continue
-
-        next_num = max_num + 1
-        student_id = f"{prefix}{next_num:03d}"
-        student.student_id = student_id
-        student.save(update_fields=["student_id"])
-        return student_id
+        student.student_id = format_student_id(prefix, number)
+        student.save(update_fields=["student_id", "updated_at"])
+        return student.student_id

@@ -4,40 +4,59 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Student',
+            name="Student",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('student_id', models.CharField(blank=True, db_index=True, help_text='Permanent student ID assigned on enrollment (e.g. TVM-ASP-AD_001).', max_length=50, null=True, unique=True)),
-                ('first_name', models.CharField(max_length=100)),
-                ('last_name', models.CharField(max_length=100)),
-                ('middle_name', models.CharField(blank=True, max_length=100)),
-                ('date_of_birth', models.DateField()),
-                ('gender', models.CharField(choices=[('MALE', 'Male'), ('FEMALE', 'Female'), ('OTHER', 'Other')], max_length=10)),
-                ('phone', models.CharField(max_length=15)),
-                ('email', models.EmailField(blank=True, max_length=254)),
-                ('address_line1', models.CharField(max_length=255)),
-                ('address_line2', models.CharField(blank=True, max_length=255)),
-                ('city', models.CharField(max_length=100)),
-                ('state', models.CharField(max_length=100)),
-                ('pincode', models.CharField(max_length=10)),
-                ('guardian_name', models.CharField(max_length=150)),
-                ('guardian_phone', models.CharField(max_length=15)),
-                ('guardian_relation', models.CharField(max_length=50)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "student_id",
+                    models.CharField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Permanent student ID assigned on enrollment (e.g. TVM-ASP-AD_001).",
+                        max_length=50,
+                        null=True,
+                        unique=True,
+                    ),
+                ),
+                ("first_name", models.CharField(max_length=100)),
+                ("last_name", models.CharField(max_length=100)),
+                ("middle_name", models.CharField(blank=True, max_length=100)),
+                ("date_of_birth", models.DateField()),
+                (
+                    "gender",
+                    models.CharField(
+                        choices=[("MALE", "Male"), ("FEMALE", "Female"), ("OTHER", "Other")],
+                        max_length=10,
+                    ),
+                ),
+                ("phone", models.CharField(max_length=15)),
+                ("email", models.EmailField(blank=True, max_length=254)),
+                ("address_line1", models.CharField(max_length=255)),
+                ("address_line2", models.CharField(blank=True, max_length=255)),
+                ("city", models.CharField(max_length=100)),
+                ("state", models.CharField(max_length=100)),
+                ("pincode", models.CharField(max_length=10)),
+                ("guardian_name", models.CharField(max_length=150)),
+                ("guardian_phone", models.CharField(max_length=15)),
+                ("guardian_relation", models.CharField(max_length=50)),
             ],
             options={
-                'verbose_name': 'Student',
-                'verbose_name_plural': 'Students',
-                'ordering': ('last_name', 'first_name'),
+                "verbose_name": "Student",
+                "verbose_name_plural": "Students",
+                "ordering": ("last_name", "first_name"),
             },
         ),
     ]

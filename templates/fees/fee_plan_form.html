@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}{% if is_create %}New Fee Plan{% else %}Edit Fee Plan{% endif %} - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6">
+    <p class="text-sm text-gray-500">
+      <a href="{% url 'fees:fee_plan_list' %}" class="text-indigo-600 hover:text-indigo-900">Fee Plans</a>
+      {% if not is_create %}/ <a href="{% url 'fees:fee_plan_detail' fee_plan.pk %}" class="text-indigo-600 hover:text-indigo-900">v{{ fee_plan.version }}</a>{% endif %}
+    </p>
+    <h1 class="mt-1 text-2xl font-semibold text-gray-900">{% if is_create %}New draft fee plan{% else %}Edit draft fee plan v{{ fee_plan.version }}{% endif %}</h1>
+    <p class="mt-1 text-sm text-gray-500">
+      {{ admission.student.get_full_name }} |
+      {{ admission.student.student_id|default:"No student ID" }} |
+      {{ admission.course.code }} / {{ admission.batch.code }} |
+      {{ admission.centre.code }}
+    </p>
+  </div>
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+    <input type="hidden" name="admission" value="{{ admission.pk }}">
+
+    {% if form.non_field_errors %}
+      <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <section class="bg-white shadow rounded-lg p-6">
+      <h2 class="text-lg font-medium text-gray-900 mb-4">Plan totals</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="{{ form.course_fee.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_fee.label }}</label>
+          {{ form.course_fee }}
+          {% if form.course_fee.errors %}<p class="mt-1 text-sm text-red-700">{{ form.course_fee.errors }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.gst_rate.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.gst_rate.label }}</label>
+          {{ form.gst_rate }}
+          <p class="mt-1 text-xs text-gray-500">{{ form.gst_rate.help_text }}</p>
+          {% if form.gst_rate.errors %}<p class="mt-1 text-sm text-red-700">{{ form.gst_rate.errors }}</p>{% endif %}
+        </div>
+        <div class="sm:col-span-2">
+          <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.notes.label }}</label>
+          {{ form.notes }}
+          {% if form.notes.errors %}<p class="mt-1 text-sm text-red-700">{{ form.notes.errors }}</p>{% endif %}
+        </div>
+      </div>
+      <p class="mt-3 text-xs text-gray-500">GST and the total payable are calculated on the server. The six components must add up to the calculated total, so application and admission charges sit inside the approved fee, not on top of it.</p>
+    </section>
+
+    <section class="bg-white shadow rounded-lg p-6">
+      <h2 class="text-lg font-medium text-gray-900 mb-1">Stage-based charges</h2>
+      <p class="mb-4 text-sm text-gray-500">Application and admission charges follow the admission stage and carry no calendar due date. They are never classified as overdue.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="sm:col-span-2">
+          <label for="{{ form.application_description.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.application_description.label }}</label>
+          {{ form.application_description }}
+          {% if form.application_description.errors %}<p class="mt-1 text-sm text-red-700">{{ form.application_description.errors }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.application_amount.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.application_amount.label }}</label>
+          {{ form.application_amount }}
+          {% if form.application_amount.errors %}<p class="mt-1 text-sm text-red-700">{{ form.application_amount.errors }}</p>{% endif %}
+        </div>
+        <div class="sm:col-span-2">
+          <label for="{{ form.admission_description.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.admission_description.label }}</label>
+          {{ form.admission_description }}
+          {% if form.admission_description.errors %}<p class="mt-1 text-sm text-red-700">{{ form.admission_description.errors }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.admission_amount.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.admission_amount.label }}</label>
+          {{ form.admission_amount }}
+          {% if form.admission_amount.errors %}<p class="mt-1 text-sm text-red-700">{{ form.admission_amount.errors }}</p>{% endif %}
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-white shadow rounded-lg p-6">
+      <h2 class="text-lg font-medium text-gray-900 mb-1">Course installments</h2>
+      <p class="mb-4 text-sm text-gray-500">Each course installment carries a suggested due date. Due dates are targets only; no payment is ever blocked for being overdue.</p>
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="sm:col-span-2">
+            <label for="{{ form.course_1_description.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_1_description.label }}</label>
+            {{ form.course_1_description }}
+          </div>
+          <div>
+            <label for="{{ form.course_1_amount.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_1_amount.label }}</label>
+            {{ form.course_1_amount }}
+          </div>
+          <div>
+            <label for="{{ form.course_1_due_date.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_1_due_date.label }}</label>
+            {{ form.course_1_due_date }}
+          </div>
+        </div>
+        {% for error in form.course_1_description.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+        {% for error in form.course_1_amount.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+        {% for error in form.course_1_due_date.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="sm:col-span-2">
+            <label for="{{ form.course_2_description.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_2_description.label }}</label>
+            {{ form.course_2_description }}
+          </div>
+          <div>
+            <label for="{{ form.course_2_amount.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_2_amount.label }}</label>
+            {{ form.course_2_amount }}
+          </div>
+          <div>
+            <label for="{{ form.course_2_due_date.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_2_due_date.label }}</label>
+            {{ form.course_2_due_date }}
+          </div>
+        </div>
+        {% for error in form.course_2_description.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+        {% for error in form.course_2_amount.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+        {% for error in form.course_2_due_date.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="sm:col-span-2">
+            <label for="{{ form.course_3_description.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_3_description.label }}</label>
+            {{ form.course_3_description }}
+          </div>
+          <div>
+            <label for="{{ form.course_3_amount.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_3_amount.label }}</label>
+            {{ form.course_3_amount }}
+          </div>
+          <div>
+            <label for="{{ form.course_3_due_date.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_3_due_date.label }}</label>
+            {{ form.course_3_due_date }}
+          </div>
+        </div>
+        {% for error in form.course_3_description.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+        {% for error in form.course_3_amount.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+        {% for error in form.course_3_due_date.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="sm:col-span-2">
+            <label for="{{ form.course_4_description.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_4_description.label }}</label>
+            {{ form.course_4_description }}
+          </div>
+          <div>
+            <label for="{{ form.course_4_amount.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_4_amount.label }}</label>
+            {{ form.course_4_amount }}
+          </div>
+          <div>
+            <label for="{{ form.course_4_due_date.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.course_4_due_date.label }}</label>
+            {{ form.course_4_due_date }}
+          </div>
+        </div>
+        {% for error in form.course_4_description.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+        {% for error in form.course_4_amount.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+        {% for error in form.course_4_due_date.errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+      </div>
+    </section>
+
+    <div class="flex justify-end gap-3">
+      <a href="{% url 'fees:fee_plan_list' %}" class="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-50">Cancel</a>
+      <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">{% if is_create %}Create draft{% else %}Save draft{% endif %}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

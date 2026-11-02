@@ -34,6 +34,7 @@ documented requirement.
 4.  Admission record linked to student, course, batch, centre, and
     academic year.
 5.  Fee plan, discounts/adjustments, and installment schedule.
+    (Superseded — see §15.)
 6.  Payment entry with payment method, transaction reference, receipt,
     and allocation to dues.
 7.  Student fee ledger and printable/downloadable receipt.
@@ -183,6 +184,7 @@ refined during implementation.
 -   `Admission`: enrolment event connecting a student to course, batch,
     centre, and academic year.
 -   `FeePlan`: agreed charges and discounts for an admission.
+    (Superseded — see §15.)
 -   `FeeInstallment`: scheduled amount and due date.
 -   `Payment`: payment transaction and receipt/payment metadata.
 -   `PaymentAllocation`: allocation of a payment to one or more fee
@@ -292,6 +294,7 @@ server.
 -   Allow multiple installments and configurable due dates.
 -   Record the agreed fee plan for each admission.
 -   Support approved scholarships/discounts and explainable adjustments.
+    (Superseded — see §15.)
 -   Define how partial payments are allocated (oldest due first by
     default, or selected installment if the user has permission).
 -   Keep allocation policy deterministic and tested.
@@ -476,7 +479,7 @@ implementing the affected workflow.
 -   Academic year boundaries.
 -   Whether students can have multiple concurrent admissions.
 -   Fee types, taxes if any, scholarships, waivers, and discount
-    approval limits.
+    approval limits. (Superseded — see §15.)
 -   Default partial-payment allocation policy.
 -   Policy for advance payments, unallocated funds, refunds, and
     reversals.
@@ -487,6 +490,76 @@ implementing the affected workflow.
     retention.
 -   Export formats required at launch.
 -   Whether online payment integration is needed in a later phase.
+
+## 15. Confirmed policy decisions (Phase 4)
+
+GIIMS has confirmed the fee policy below. It supersedes the earlier
+aspirational language in this document about discounts, waivers,
+scholarships, and concessions. `docs/PHASE4_FEE_PLANS.md` is the detailed
+implementation contract for these decisions.
+
+-   **Due dates are target dates.** Every course installment carries an
+    original suggested due date. Payments are accepted before, on, or
+    after that date and must never be blocked or refused because an
+    installment is overdue. Overdue is a derived reporting calculation
+    based on the unpaid balance and the effective due date as of a chosen
+    reporting date; it is not a gate on collection.
+-   **The original date is permanent.** Authorised staff may revise an
+    individual student's installment due date. Each revision records the
+    previous date, the revised date, a required reason, the acting user,
+    and a timestamp. A revision never changes the approved plan, the
+    course fee, the GST amount, or the installment amount. The original
+    due date is retained for audit and reporting.
+-   **Application and admission charges** follow the admission process
+    and may be collected at flexible dates. Do not invent fixed calendar
+    deadlines for these two stages.
+-   **No automatic late fees or penalties.** Nothing in the system
+    computes, accrues, or posts late fees, interest, or penalties.
+-   **No discounts, waivers, scholarships, or concessions.** There is no
+    discount module, no automatic discount calculation, no approval
+    limits or hierarchies, and no path for staff to arbitrarily reduce
+    approved fees. The approved course fee and GST amounts are kept
+    intact. Exceptional adjustments, if ever required, must come from a
+    separately designed, authorised, and auditable workflow with its own
+    approval rules.
+-   **Six concepts stay separate.** The original approved installment
+    amount, the original suggested due date, the revised student-specific
+    due date, the actual amount paid, the outstanding balance, and the
+    actual payment date remain distinct in the schema, services,
+    selectors, and UI. A deadline change must never alter an installment
+    amount.
+-   **GST is set per fee plan.** Each fee plan stores its own GST rate and
+    the calculated GST amount. The July 2026 Logistics & SCM plan uses
+    18%. There is no global GST rate setting and no automatic
+    course-level default. The rate and the calculated GST amount are
+    snapshotted into the student's approved fee structure and are
+    immutable afterwards, so later changes cannot alter existing
+    obligations.
+-   **Due-date revision roles.** `ADMIN`, `MANAGEMENT`, and `ACCOUNTS`
+    may apply a due-date revision. `ADMISSIONS` staff may submit a request
+    but may not approve or apply it. Every applied change records the
+    previous date, the revised date, the reason, the acting user, and a
+    timestamp.
+-   **Revisions may move a date earlier or later.** No rule restricts
+    revisions to extensions, and no revision changes any amount.
+-   **Approved fee plans are immutable and versioned.** Drafts may be
+    edited. A correction to an approved plan creates a new version; the
+    previous version and its audit history are preserved. Exactly one
+    version is the active approved obligation. Existing student fee
+    assignments retain their original structure unless they are
+    explicitly reassigned through an authorised process.
+-   **Application and admission charges are stage-based components of the
+    same plan.** The application component is INR 1,000 at the
+    application stage and the admission component is INR 10,000 at the
+    admission stage; neither carries a calendar due date. The remaining
+    four installments carry suggested calendar due dates. All six
+    components sit inside the approved total of INR 1,97,650 and are not
+    additional charges.
+
+The detailed models, constraints, services, selectors, permissions, and
+test matrix for these decisions are specified in
+`docs/PHASE4_FEE_PLANS.md`. No database migrations for them have been
+created yet; they await review.
 
 ------------------------------------------------------------------------
 

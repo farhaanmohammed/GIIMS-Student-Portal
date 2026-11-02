@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Fee Plan v{{ fee_plan.version }} - {{ fee_plan.admission.student.get_full_name }} - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="text-sm text-gray-500">
+        <a href="{% url 'fees:fee_plan_list' %}" class="text-indigo-600 hover:text-indigo-900">Fee Plans</a>
+        / {{ fee_plan.admission.student.get_full_name }}
+      </p>
+      <h1 class="mt-1 text-2xl font-semibold text-gray-900">Fee Plan <span class="text-gray-500">v{{ fee_plan.version }}</span></h1>
+      <p class="mt-1 text-sm text-gray-500">
+        {{ fee_plan.admission.student.student_id|default:"No student ID" }} |
+        {{ fee_plan.admission.course.code }} / {{ fee_plan.admission.batch.code }} |
+        {{ fee_plan.admission.centre.name }} ({{ fee_plan.admission.centre.code }})
+      </p>
+    </div>
+    <div class="text-right">
+      <span class="inline-block px-3 py-1 text-sm rounded-full {% if fee_plan.status == 'APPROVED' %}bg-green-100 text-green-800{% elif fee_plan.status == 'DRAFT' %}bg-yellow-100 text-yellow-800{% elif fee_plan.status == 'SUPERSEDED' %}bg-slate-100 text-slate-700{% else %}bg-gray-100 text-gray-800{% endif %}">
+        {{ fee_plan.get_status_display }}
+      </span>
+      {% if fee_plan.approved_at %}
+        <p class="mt-2 text-xs text-gray-500">Approved {{ fee_plan.approved_at|date:"d M Y H:i" }} by {{ fee_plan.approved_by }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if messages %}
+    <div class="mb-4 space-y-2">
+      {% for message in messages %}
+        <div class="rounded-md px-4 py-3 text-sm {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200{% else %}bg-green-50 text-green-800 border border-green-200{% endif %}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <section class="bg-white shadow rounded-lg p-6" aria-labelledby="gst-snapshot-heading">
+      <h2 id="gst-snapshot-heading" class="text-lg font-medium text-gray-900 mb-4">GST snapshot</h2>
+      <dl class="grid grid-cols-2 gap-4">
+        <div>
+          <dt class="text-sm text-gray-500">Taxable course fee</dt>
+          <dd class="mt-1 text-sm font-medium text-gray-900">{{ fee_plan.course_fee|floatformat:2 }} {{ fee_plan.currency }}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">GST rate</dt>
+          <dd class="mt-1 text-sm font-medium text-gray-900">{{ fee_plan.gst_rate|floatformat:2 }}%</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">GST amount</dt>
+          <dd class="mt-1 text-sm font-medium text-gray-900">{{ fee_plan.gst_amount|floatformat:2 }} {{ fee_plan.currency }}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Total payable</dt>
+          <dd class="mt-1 text-sm font-semibold text-gray-900">{{ fee_plan.total_payable|floatformat:2 }} {{ fee_plan.currency }}</dd>
+        </div>
+      </dl>
+      {% if fee_plan.notes %}
+        <p class="mt-4 text-sm text-gray-600 whitespace-pre-line">{{ fee_plan.notes }}</p>
+      {% endif %}
+    </section>
+
+    <section class="bg-white shadow rounded-lg p-6" aria-labelledby="position-heading">
+      <h2 id="position-heading" class="text-lg font-medium text-gray-900 mb-4">Position as of {{ today|date:"d M Y" }}</h2>
+      <dl class="grid grid-cols-2 gap-4">
+        <div>
+          <dt class="text-sm text-gray-500">Billed</dt>
+          <dd class="mt-1 text-sm font-medium text-gray-900">{{ summary.total_billed|floatformat:2 }}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Paid</dt>
+          <dd class="mt-1 text-sm font-medium text-gray-900">{{ summary.total_paid|floatformat:2 }}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Outstanding</dt>
+          <dd class="mt-1 text-sm font-semibold text-gray-900">{{ summary.total_outstanding|floatformat:2 }}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Overdue</dt>
+          <dd class="mt-1 text-sm font-medium {% if summary.overdue_outstanding %}text-red-700{% else %}text-gray-900{% endif %}">{{ summary.overdue_outstanding|floatformat:2 }}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Not yet due</dt>
+          <dd class="mt-1 text-sm font-medium text-gray-900">{{ summary.not_yet_due_outstanding|floatformat:2 }}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Stage-based (no date)</dt>
+          <dd class="mt-1 text-sm font-medium text-gray-900">{{ summary.undated_outstanding|floatformat:2 }}</dd>
+        </div>
+      </dl>
+      <p class="mt-3 text-xs text-gray-500">Due dates are targets only. Payments are never blocked for being overdue, and no late fee is applied.</p>
+    </section>
+  </div>
+
+  <section class="bg-white shadow rounded-lg overflow-hidden mb-6" aria-labelledby="components-heading">
+    <div class="px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
+      <h2 id="components-heading" class="text-lg font-medium text-gray-900">Components</h2>
+      <p class="text-xs text-gray-500">Original suggested dates are permanent. Effective dates reflect applied student-specific revisions.</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Original due</th>
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Effective due</th>
+            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">State</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {% for row in installment_rows %}
+            <tr>
+              <td class="px-4 py-4 text-sm text-gray-500">{{ row.installment.sequence }}</td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{{ row.installment.get_category_display }}</td>
+              <td class="px-4 py-4 text-sm text-gray-900">{{ row.installment.description }}</td>
+              <td class="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-900">{{ row.installment.amount|floatformat:2 }}</td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{ row.installment.original_due_date|date:"d M Y"|default:"Stage-based" }}</td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{{ row.effective_due_date|date:"d M Y"|default:"Stage-based" }}</td>
+              <td class="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-900">{{ row.outstanding|floatformat:2 }}</td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm">
+                {% if row.installment.category != 'COURSE' %}
+                  <span class="px-2 py-1 text-xs rounded-full bg-slate-100 text-slate-700">Stage-based</span>
+                {% elif row.is_overdue %}
+                  <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Overdue (target passed)</span>
+                {% else %}
+                  <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Not yet due</span>
+                {% endif %}
+                {% if row.pending_request %}
+                  <span class="ml-1 px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Change pending</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-right text-sm">
+                {% if row.installment.category == 'COURSE' and fee_plan.status == 'APPROVED' %}
+                  <a href="{% url 'fees:installment_due_date' row.installment.pk %}" class="text-indigo-600 hover:text-indigo-900">
+                    {% if can_apply_due_date %}Apply revision{% else %}Request change{% endif %}
+                  </a>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="9" class="px-4 py-4 text-center text-sm text-gray-500">This plan has no components.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <section class="bg-white shadow rounded-lg p-6" aria-labelledby="versions-heading">
+      <h2 id="versions-heading" class="text-lg font-medium text-gray-900 mb-4">Version history</h2>
+      <ol class="space-y-2">
+        {% for version in history %}
+          <li class="flex items-center justify-between text-sm">
+            <span>
+              <a href="{% url 'fees:fee_plan_detail' version.pk %}" class="font-medium text-indigo-600 hover:text-indigo-900">v{{ version.version }}</a>
+              <span class="ml-2 text-gray-500">{{ version.get_status_display }}</span>
+              {% if version.supersedes_id %}<span class="ml-2 text-xs text-gray-400">replaces v{{ version.supersedes.version }}</span>{% endif %}
+            </span>
+            <span class="text-gray-500">{{ version.total_payable|floatformat:2 }}</span>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+
+    <section class="bg-white shadow rounded-lg p-6" aria-labelledby="actions-heading">
+      <h2 id="actions-heading" class="text-lg font-medium text-gray-900 mb-4">Actions</h2>
+      {% if fee_plan.status == 'DRAFT' %}
+        {% if can_manage_plans %}
+          <div class="flex flex-wrap gap-3">
+            <a href="{% url 'fees:fee_plan_update' fee_plan.pk %}" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Edit draft</a>
+            <form method="post" action="{% url 'fees:fee_plan_approve' fee_plan.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" onclick="return confirm('Approve this fee plan? Approved plans become immutable.');">Approve plan</button>
+            </form>
+          </div>
+          <form method="post" action="{% url 'fees:fee_plan_cancel' fee_plan.pk %}" class="mt-4">
+            {% csrf_token %}
+            <label for="cancel-reason" class="block text-sm font-medium text-gray-700">Cancellation reason</label>
+            <textarea id="cancel-reason" name="reason" rows="2" minlength="10" required class="mt-1 block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-slate-900 shadow-xs focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600 sm:text-sm"></textarea>
+            <button type="submit" class="mt-2 px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50" onclick="return confirm('Cancel this draft plan?');">Cancel draft</button>
+          </form>
+        {% else %}
+          <p class="text-sm text-gray-500">You do not have permission to edit or approve fee plans.</p>
+        {% endif %}
+      {% elif fee_plan.status == 'APPROVED' %}
+        <p class="text-sm text-gray-600 mb-4">Approved plans are immutable. A correction creates a new draft version; the approved version remains in force until the new one is approved.</p>
+        {% if can_manage_plans %}
+          <form method="post" action="{% url 'fees:fee_plan_new_version' fee_plan.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Create new version</button>
+          </form>
+        {% endif %}
+      {% elif fee_plan.status == 'SUPERSEDED' %}
+        <p class="text-sm text-gray-600">This version was superseded by a later correction. It is retained for audit and is never edited.</p>
+      {% else %}
+        <p class="text-sm text-gray-600">This draft was cancelled and is retained for audit.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <section class="bg-white shadow rounded-lg p-6" aria-labelledby="revisions-heading">
+      <h2 id="revisions-heading" class="text-lg font-medium text-gray-900 mb-4">Applied due-date revisions</h2>
+      <ul class="space-y-3">
+        {% for revision in due_date_history %}
+          <li class="text-sm">
+            <p class="font-medium text-gray-900">#{{ revision.installment.sequence }} {{ revision.installment.description }}</p>
+            <p class="text-gray-600">{{ revision.previous_due_date|date:"d M Y"|default:"none" }} &rarr; {{ revision.revised_due_date|date:"d M Y" }}</p>
+            <p class="text-gray-500">{{ revision.reason }}</p>
+            <p class="text-xs text-gray-400">{{ revision.revised_by }} | {{ revision.created_at|date:"d M Y H:i" }}{% if revision.source_request %} | from approved request{% endif %}</p>
+          </li>
+        {% empty %}
+          <li class="text-sm text-gray-500">No due-date revisions have been applied.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="bg-white shadow rounded-lg p-6" aria-labelledby="requests-heading">
+      <h2 id="requests-heading" class="text-lg font-medium text-gray-900 mb-4">Due-date change requests</h2>
+      <ul class="space-y-3">
+        {% for change_request in request_history %}
+          <li class="text-sm">
+            <p class="font-medium text-gray-900">#{{ change_request.installment.sequence }} {{ change_request.installment.description }}</p>
+            <p class="text-gray-600">{{ change_request.previous_due_date|date:"d M Y"|default:"none" }} &rarr; {{ change_request.proposed_due_date|date:"d M Y" }}</p>
+            <p class="text-gray-500">{{ change_request.reason }}</p>
+            <p class="text-xs text-gray-400">
+              {{ change_request.get_status_display }} | requested by {{ change_request.requested_by }} on {{ change_request.requested_at|date:"d M Y H:i" }}
+              {% if change_request.decided_by %} | decided by {{ change_request.decided_by }}{% endif %}
+            </p>
+            {% if change_request.decision_note %}<p class="text-xs text-gray-500">Note: {{ change_request.decision_note }}</p>{% endif %}
+          </li>
+        {% empty %}
+          <li class="text-sm text-gray-500">No due-date change requests have been raised.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+</div>
+{% endblock %}

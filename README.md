@@ -3,7 +3,7 @@
 A web-based student admission and fee-management portal for GIIMS, built
 with Django, PostgreSQL, HTMX, and Alpine.js.
 
-> **Project status:** Phases 1, 2, and 3 implemented. Phase 1 delivered settings, PostgreSQL, the custom `User` model, centre scoping, authentication, Tailwind CSS v4, HTMX, Alpine.js, Ruff, and the test suite. Phase 2 delivered academic years, courses, and centre-scoped batch management under `/academics/`, with role-gated writes. Phase 3 delivered student master, admission lifecycle (`ENQUIRED` → `ENROLLED`), student ID generation on enrollment (`TVM-ASP-AD_001` format), combined enquiry flow, and centre-scoped views under `/students/` and `/admissions/`. Subsequent domain modules are implemented in iterative phases following `docs/PROJECT_SPEC.md`.
+> **Project status:** Phases 1–4 implemented. Phase 1 delivered settings, PostgreSQL, the custom `User` model, centre scoping, authentication, Tailwind CSS v4, HTMX, Alpine.js, Ruff, and the test suite. Phase 2 delivered academic years, courses, and centre-scoped batch management under `/academics/`, with role-gated writes. Phase 3 delivered student master, admission lifecycle (`ENQUIRED` → `ENROLLED`), student ID generation on enrollment (`TVM-ASP-AD_001` format), combined enquiry flow, and centre-scoped views under `/students/` and `/admissions/`. Phase 4 delivered versioned fee plans, the per-plan GST snapshot, six-component installment schedules, and the due-date request/approval workflow under `/fees/`. Subsequent domain modules are implemented in iterative phases following `docs/PROJECT_SPEC.md`.
 
 ## What the application will do
 
@@ -22,6 +22,7 @@ with Django, PostgreSQL, HTMX, and Alpine.js.
 See [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) for scope,
 architecture, business rules, and engineering standards.
 Implementation milestones, completed deliverables, and test records are tracked in [`docs/PROGRESS.md`](docs/PROGRESS.md).
+The Phase 4 fee plan, installment schedule, and due-date contract is in [`docs/PHASE4_FEE_PLANS.md`](docs/PHASE4_FEE_PLANS.md). It is implemented and migrated (`apps/fees/migrations/0001_initial.py`); §16 of that document records the verification run and the deviations from the original design.
 AI coding-agent instructions are in [`AGENTS.md`](AGENTS.md).
 
 ## Technology
@@ -210,7 +211,10 @@ process, not automatically on every production web-worker startup.
     authentication, and access model.
 2.  **Done (Phase 2):** Centre, academic year, course, and batch masters.
 3.  **Done (Phase 3):** Student master and admission workflow with student ID generation on enrollment.
-4.  **Up next (Phase 4):** Fee plans, installments, discounts/waivers, and approvals.
+4.  **Done (Phase 4):** Versioned fee plans with a per-plan GST snapshot,
+    six components per plan including stage-based application and admission
+    charges, approved-plan immutability, and the due-date request/approval
+    workflow. No discount or waiver module.
 5.  Payments, allocations, reversals, and traceable receipts.
 6.  Student ledger, collection/outstanding reports, audit trail, security review, tests, and deployment.
 
@@ -224,12 +228,26 @@ before deployment.
 
 ## Project decisions to confirm
 
-Before implementing the related workflows, confirm: - Centre codes and
-student/admission ID format. - Receipt number scope and format. -
-Academic year boundaries. - Fee types, discount/waiver permissions, and
-approval workflow. - Partial-payment allocation policy. -
-Advance-payment, refund, and reversal policies. - Roles and cross-centre
-visibility. - Hosting, private document storage, and backup retention.
+Resolved in Phase 4: the GST basis (INR 1,97,650 is GST-inclusive:
+taxable value 1,67,500 plus GST 30,150), the six-component plan structure
+(application INR 1,000 and admission INR 10,000 stage-based, four dated
+`COURSE` components summing to INR 1,86,650), approved-plan versioning,
+and the due-date request/approval roles.
+
+Still to confirm before the related workflows:
+
+-   Receipt number scope and format.
+-   Whether `ACCOUNTS` may create or edit draft fee plans (currently
+    `ADMIN`/`MANAGEMENT` only).
+-   The authorised process for reassigning an existing admission to a
+    corrected fee structure.
+-   Partial-payment allocation policy (oldest-due-first versus
+    staff-selected).
+-   Advance-payment, refund, and reversal policies.
+-   Academic year boundaries and the batch naming convention.
+-   Roles and cross-centre visibility beyond the current model.
+-   Hosting, private document storage, and backup retention.
+-   Export formats required at launch.
 
 ## Contributing
 

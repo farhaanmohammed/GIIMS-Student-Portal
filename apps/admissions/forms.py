@@ -1,14 +1,33 @@
+from typing import Any, ClassVar
+
 from django import forms
 from django.core.exceptions import ValidationError
 
 from apps.admissions.models import Admission
 from apps.students.models import Student
 
+INPUT_CLASSES = (
+    "block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-slate-900 "
+    "shadow-xs focus:border-indigo-600 focus:outline-none focus:ring-1 "
+    "focus:ring-indigo-600 sm:text-sm"
+)
+
+
+def _date_input() -> forms.DateInput:
+    """Return a fresh date widget so fields never share a mutable widget."""
+    return forms.DateInput(attrs={"class": INPUT_CLASSES, "type": "date"})
+
+
+def _text_input() -> forms.TextInput:
+    return forms.TextInput(attrs={"class": INPUT_CLASSES})
+
 
 class StudentEnquiryForm(forms.ModelForm):
+    """Collect the durable student identity details during an enquiry."""
+
     class Meta:
         model = Student
-        fields = [
+        fields = (
             "first_name",
             "last_name",
             "middle_name",
@@ -24,23 +43,23 @@ class StudentEnquiryForm(forms.ModelForm):
             "guardian_name",
             "guardian_phone",
             "guardian_relation",
-        ]
-        widgets = {
-            "date_of_birth": forms.DateInput(attrs={"type": "date", "class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "first_name": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "last_name": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "middle_name": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "gender": forms.Select(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "phone": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "email": forms.EmailInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "address_line1": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "address_line2": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "city": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "state": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "pincode": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "guardian_name": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "guardian_phone": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "guardian_relation": forms.TextInput(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
+        )
+        widgets: ClassVar[dict[str, Any]] = {
+            "first_name": _text_input(),
+            "last_name": _text_input(),
+            "middle_name": _text_input(),
+            "date_of_birth": _date_input(),
+            "gender": forms.Select(attrs={"class": INPUT_CLASSES}),
+            "phone": _text_input(),
+            "email": forms.EmailInput(attrs={"class": INPUT_CLASSES}),
+            "address_line1": _text_input(),
+            "address_line2": _text_input(),
+            "city": _text_input(),
+            "state": _text_input(),
+            "pincode": _text_input(),
+            "guardian_name": _text_input(),
+            "guardian_phone": _text_input(),
+            "guardian_relation": _text_input(),
         }
 
     def clean_phone(self):
@@ -57,29 +76,28 @@ class StudentEnquiryForm(forms.ModelForm):
 
 
 class AdmissionEnquiryForm(forms.ModelForm):
+    """Collect the admission placement details for an enquiry."""
+
     class Meta:
         model = Admission
-        fields = ["centre", "course", "batch", "academic_year"]
-        widgets = {
-            "centre": forms.Select(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "course": forms.Select(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "batch": forms.Select(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
-            "academic_year": forms.Select(attrs={"class": "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"}),
+        fields = ("centre", "course", "batch", "academic_year")
+        widgets: ClassVar[dict[str, Any]] = {
+            "centre": forms.Select(attrs={"class": INPUT_CLASSES}),
+            "course": forms.Select(attrs={"class": INPUT_CLASSES}),
+            "batch": forms.Select(attrs={"class": INPUT_CLASSES}),
+            "academic_year": forms.Select(attrs={"class": INPUT_CLASSES}),
         }
 
-    def __init__(self, user=None, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self._user = user
         if user is not None:
-            from django.db.models import Q
-
-            accessible = user.get_accessible_centres()
-            self.fields["centre"].queryset = accessible
-            if accessible.exists():
+            self.fields["centre"].queryset = user.get_accessible_centres()
+            if user.primary_centre_id:
                 self.fields["centre"].initial = user.primary_centre
 
     def clean_centre(self):
         centre = self.cleaned_data.get("centre")
-        user = getattr(self, "_user", None)
-        if user and centre and not user.can_access_centre(centre):
+        if self._user is not None and centre and not self._user.can_access_centre(centre):
             raise ValidationError("You do not have access to this centre.")
         return centre
