@@ -3,13 +3,7 @@
 A web-based student admission and fee-management portal for GIIMS, built
 with Django, PostgreSQL, HTMX, and Alpine.js.
 
-> **Project status:** Phase 1 Foundation and Phase 2 Academic Masters
-> implemented. Phase 1 delivered settings, PostgreSQL, the custom `User`
-> model, centre scoping, authentication, Tailwind CSS v4, HTMX, Alpine.js,
-> Ruff, and the test suite. Phase 2 delivered academic years, courses, and
-> centre-scoped batch management under `/academics/`, with role-gated
-> writes. Subsequent domain modules are implemented in iterative phases
-> following `docs/PROJECT_SPEC.md`.
+> **Project status:** Phases 1, 2, and 3 implemented. Phase 1 delivered settings, PostgreSQL, the custom `User` model, centre scoping, authentication, Tailwind CSS v4, HTMX, Alpine.js, Ruff, and the test suite. Phase 2 delivered academic years, courses, and centre-scoped batch management under `/academics/`, with role-gated writes. Phase 3 delivered student master, admission lifecycle (`ENQUIRED` → `ENROLLED`), student ID generation on enrollment (`TVM-ASP-AD_001` format), combined enquiry flow, and centre-scoped views under `/students/` and `/admissions/`. Subsequent domain modules are implemented in iterative phases following `docs/PROJECT_SPEC.md`.
 
 ## What the application will do
 
@@ -215,10 +209,10 @@ process, not automatically on every production web-worker startup.
 1.  **Done (Phase 1):** Project bootstrap, settings, database,
     authentication, and access model.
 2.  **Done (Phase 2):** Centre, academic year, course, and batch masters.
-3.  **Up next (Phase 3):** Student master and admission workflow.
-4.  Fee plans, installments, payments, allocations, and receipts.
-5.  Student ledger and collection/outstanding reports.
-6.  Audit trail, security review, tests, and deployment.
+3.  **Done (Phase 3):** Student master and admission workflow with student ID generation on enrollment.
+4.  **Up next (Phase 4):** Fee plans, installments, discounts/waivers, and approvals.
+5.  Payments, allocations, reversals, and traceable receipts.
+6.  Student ledger, collection/outstanding reports, audit trail, security review, tests, and deployment.
 
 ## Security note
 
