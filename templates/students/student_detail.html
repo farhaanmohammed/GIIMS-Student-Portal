@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ student.student_id|default:student.get_full_name }} - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold text-gray-900">{{ student.get_full_name }}</h1>
+    <p class="text-sm text-gray-500">Student ID: {{ student.student_id|default:"Not enrolled yet" }}</p>
+  </div>
+  <div class="bg-white shadow rounded-lg p-6 mb-6">
+    <h2 class="text-lg font-medium text-gray-900 mb-4">Personal Details</h2>
+    <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Date of Birth</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ student.date_of_birth }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Gender</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ student.get_gender_display }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Phone</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ student.phone }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Email</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ student.email|default:"-" }}</dd>
+      </div>
+    </dl>
+  </div>
+  <div class="bg-white shadow rounded-lg p-6">
+    <h2 class="text-lg font-medium text-gray-900 mb-4">Admissions</h2>
+    <div class="space-y-4">
+      {% for admission in student.admissions.all %}
+      <div class="border rounded-lg p-4">
+        <div class="flex justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-900">{{ admission.course.code }} - {{ admission.batch.code }}</p>
+            <p class="text-sm text-gray-500">{{ admission.academic_year.label }} | {{ admission.centre.name }}</p>
+          </div>
+          <span class="px-2 py-1 text-xs rounded-full {% if admission.status == 'ENROLLED' %}bg-green-100 text-green-800{% elif admission.status == 'ENQUIRED' %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+            {{ admission.get_status_display }}
+          </span>
+        </div>
+      </div>
+      {% empty %}
+      <p class="text-sm text-gray-500">No admissions found.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

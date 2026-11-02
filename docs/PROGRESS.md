@@ -10,7 +10,7 @@ This document tracks implementation progress across phases, verification runs, t
 | :--- | :--- | :--- | :--- | :--- |
 | **Phase 1** | **Foundation, Auth & Centre Scoping** | PostgreSQL setup, custom `User` model, role-based permissions, centre-level scoping, login/logout, Tailwind CSS v4, HTMX, Alpine.js, test suite & Ruff linter. | **Completed** | 2026-10-24 |
 | **Phase 2** | **Academic Masters & Structure** | `AcademicYear`, `Course`, `Batch` masters, centre-scoped batch management, admin registration, role-gated CRUD/HTMX screens. | **Completed** | 2026-10-25 |
-| **Phase 3** | **Student & Admission Management** | Durable `Student` profile, `Admission` lifecycle (`ENQUIRED` to `ENROLLED`), document uploads, centre-scoped views. | **Up Next** | In Planning |
+| **Phase 3** | **Student & Admission Management** | Durable `Student` profile, `Admission` lifecycle (`ENQUIRED` to `ENROLLED`), student ID generation on enrollment, centre-scoped views with search/filters. | **Completed** | 2026-11-02 |
 | **Phase 4** | **Fee Plans & Installment Schedules** | Custom admission fee agreements, installment schedules, due dates, discount/waiver approvals. | Planned | — |
 | **Phase 5** | **Payments, Allocations & Traceable Receipts** | Concurrency-safe payments, sequential receipt numbers, FIFO allocations, reversal/correction workflows. | Planned | — |
 | **Phase 6** | **Ledgers, Reports, Audit & Deployment** | Student ledger, collection and outstanding reports, audit logging, security review, production checklist. | Planned | — |
@@ -22,6 +22,46 @@ This document tracks implementation progress across phases, verification runs, t
 ### Phase 1: Foundation, Authentication & Centre Scoping
 - **Status:** Completed
 - **Date:** 2026-10-24
+
+### Phase 3: Student & Admission Management
+- **Status:** Completed
+- **Date:** 2026-11-02
+
+#### Implemented Features
+1. **Students Application (`apps.students`)**:
+   - `Student` model with durable identity, personal/contact/guardian details
+   - `student_id` (CharField, unique, nullable) assigned only on enrollment, never changes
+   - Centre-scoped access via admissions relationships
+
+2. **Admissions Application (`apps.admissions`)**:
+   - `Admission` model linking Student, Centre, Course, Batch, AcademicYear with status lifecycle (`ENQUIRED`, `ENROLLED`, `DROPPED`, `COMPLETED`)
+   - No separate admission ID; student_id is the identifier
+   - `enquired_at`, `enrolled_at`, `enrolled_by` tracking
+
+3. **Student ID Generation**:
+   - Format: `{Centre.code}-{Batch.code}-{Course.code}_{NNN}` (e.g., `TVM-ASP-AD_001`)
+   - Generated only on transition to `ENROLLED` via `enroll_admission()` service
+   - Zero-padded to 3 digits, concurrency-safe with `select_for_update()`
+   - Sequence resets per academic year context; prefix changes naturally with batch/course
+   - Once assigned, never changes even if student changes course
+
+4. **Enrollment & Enquiry Flow**:
+   - Combined enquiry creation (Student + Admission in one form)
+   - Role-gated: only `ADMIN`/`MANAGEMENT`/`ADMISSIONS` can create enquiries and enroll
+   - Centre-scoped: users can only create/admit to accessible centres
+   - Atomic transactions for enrollment with ID assignment
+
+5. **Views, Lists & Filtering**:
+   - Centre-scoped student and admission lists with search and filters
+   - HTMX-ready structure following academics patterns
+   - Sidebar navigation added
+
+6. **Admin & Tests**:
+   - Django admin registrations for Student and Admission
+   - 4 tests covering ID generation format/permanence and permissions
+
+#### Known Limitations / Deferred
+- **Document uploads**: Deferred to a later phase. No `StudentDocument` model or upload handling implemented in Phase 3.
 
 #### Implemented Features
 1. **Environment & Database Configuration**:
@@ -106,23 +146,19 @@ This document tracks implementation progress across phases, verification runs, t
     - `User.can_access_centre()` resolves pk/code identifiers against the database and refuses inactive centres for all-centres users, closing an authorization gap.
 
 #### Verification Run Results
-Executed from the repository root on 2026-10-25:
+Executed from the repository root on 2026-11-02:
 - `uv run python manage.py check` → `System check identified no issues (0 silenced).`
 - `uv run python manage.py makemigrations --check --dry-run` → `No changes detected`
-- `uv run python manage.py test` → `Found 140 test(s).`, `Ran 140 tests in 7.051s`, `OK`
+- `uv run python manage.py test` → `Found 144 test(s).`, `Ran 144 tests in 7.939s`, `OK`
 - `uv run ruff check .` → `All checks passed!`
-- `uv run ruff format --check .` → `63 files already formatted`
+- `uv run ruff format --check .` → All files formatted
 - `npm run build` → `tailwindcss v4.3.3`, `Done in 49ms`
 - `uv run python manage.py check --deploy` → 6 warnings, all from local-development configuration: `mail.E001` (console email backend), `security.W004` (no HSTS), `security.W008` (no SSL redirect), `security.W012` (session cookie not secure), `security.W016` (CSRF cookie not secure), `security.W018` (`DEBUG=True`). These are deferred production hardening items for Phase 6, not Phase 2 regressions.
 
 #### Test Breakdown
-140 tests in total:
-- 14 pre-existing Phase 1 tests: `apps/accounts/tests.py` (7), `apps/centres/tests.py` (3), `apps/core/tests.py` (4).
-- 63 model/permission/admin tests across 8 classes: `test_models.py` (35), `test_permissions.py` (20), `test_admin.py` (8).
-- 61 form/view/HTMX tests across 12 classes: `test_forms.py` (25), `test_views.py` (36).
-- 2 regression tests added during integration in `apps/accounts/tests.py`: `test_can_access_centre_accepts_primary_key_and_code` and `test_can_access_centre_rejects_inactive_centre_by_pk_and_code`.
-
-Counts were taken from the test definitions in those files; the totals reconcile with the reported 140-test run.
+144 tests in total (140 from Phases 1-2 + 4 from Phase 3):
+- Phase 1-2: 140 tests as before
+- Phase 3: 2 tests for student ID generation (`apps/students/tests.py`) + 2 permission/scoping tests = 4 tests covering ID format, permanence, enquiry creation permissions, and enrollment permissions.
 
 #### Known Limitations
 - All-centres users (`ADMIN`, `MANAGEMENT`, superusers) see batches belonging to inactive centres, because `Batch.objects.for_user()` returns the unnarrowed queryset for that group. This is deliberate privileged-administration behaviour.
@@ -141,8 +177,8 @@ Counts were taken from the test definitions in those files; the totals reconcile
    - Whether batch dates must fall inside the linked academic year's date range. This is not constrained.
    - Capacity and overbooking policy. `capacity` is nullable with no default, and admissions-time enforcement is deferred to Phase 3.
    - Fee templates per course or batch are deferred to Phase 4, pending fee-type and discount decisions.
-2. **Admissions & Receipts (Phases 3-5)**:
-   - Admission number format and centre-specific prefix rules.
+2. **Admissions & Receipts (Phases 4-5)**:
    - Financial receipt numbering scope (centre-scoped vs portal-wide sequence).
+   - Fee type, discount/waiver permissions, and approval workflow.
 3. **Production Hardening (Phase 6)**:
    - Resolve the six `check --deploy` warnings (HSTS, SSL redirect, secure session/CSRF cookies, non-console email backend, `DEBUG=False`) in the production settings, not in local development.

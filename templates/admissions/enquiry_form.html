@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}New Enquiry - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <h1 class="text-2xl font-semibold text-gray-900 mb-6">New Enquiry (Student + Admission)</h1>
+  <form method="post">
+    {% csrf_token %}
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+      <h2 class="text-lg font-medium text-gray-900 mb-4">Student Details</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for field in student_form %}
+        <div class="{% if field.name in 'address_line1 address_line2' %}md:col-span-2{% endif %}">
+          <label class="block text-sm font-medium text-gray-700">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+          {{ field }}
+          {% if field.errors %}<p class="mt-1 text-sm text-red-600">{{ field.errors.0 }}</p>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+      <h2 class="text-lg font-medium text-gray-900 mb-4">Admission Details</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for field in admission_form %}
+        <div>
+          <label class="block text-sm font-medium text-gray-700">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+          {{ field }}
+          {% if field.errors %}<p class="mt-1 text-sm text-red-600">{{ field.errors.0 }}</p>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Create Enquiry</button>
+  </form>
+</div>
+{% endblock %}

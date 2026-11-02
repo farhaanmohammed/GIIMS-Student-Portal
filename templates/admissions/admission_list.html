@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Admissions - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-semibold text-gray-900">Admissions</h1>
+    <a href="{% url 'admissions:enquiry_create' %}" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">New Enquiry</a>
+  </div>
+  <form method="get" class="mb-4 flex gap-2">
+    <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Search by name, ID, phone..." class="px-3 py-2 border rounded-md">
+    <select name="status" class="px-3 py-2 border rounded-md">
+      <option value="">All Status</option>
+      <option value="ENQUIRED" {% if request.GET.status == "ENQUIRED" %}selected{% endif %}>Enquired</option>
+      <option value="ENROLLED" {% if request.GET.status == "ENROLLED" %}selected{% endif %}>Enrolled</option>
+      <option value="DROPPED" {% if request.GET.status == "DROPPED" %}selected{% endif %}>Dropped</option>
+      <option value="COMPLETED" {% if request.GET.status == "COMPLETED" %}selected{% endif %}>Completed</option>
+    </select>
+    <button type="submit" class="px-4 py-2 bg-gray-100 rounded-md">Filter</button>
+  </form>
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student ID</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course/Batch</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Centre/Year</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+          <th class="px-6 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {% for admission in admissions %}
+        <tr>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ admission.student.get_full_name }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ admission.student.student_id|default:"-" }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ admission.course.code }} / {{ admission.batch.code }}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ admission.centre.code }} / {{ admission.academic_year.label }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span class="px-2 py-1 text-xs rounded-full {% if admission.status == 'ENROLLED' %}bg-green-100 text-green-800{% elif admission.status == 'ENQUIRED' %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+              {{ admission.get_status_display }}
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <a href="{% url 'admissions:admission_detail' admission.pk %}" class="text-indigo-600 hover:text-indigo-900">View</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">No admissions found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

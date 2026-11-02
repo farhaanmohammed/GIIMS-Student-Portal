@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Admission - {{ admission.student.get_full_name }} - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6 flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-semibold text-gray-900">Admission Details</h1>
+      <p class="text-sm text-gray-500">{{ admission.student.get_full_name }} | {{ admission.student.student_id|default:"No Student ID" }}</p>
+    </div>
+    <span class="px-3 py-1 text-sm rounded-full {% if admission.status == 'ENROLLED' %}bg-green-100 text-green-800{% elif admission.status == 'ENQUIRED' %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+      {{ admission.get_status_display }}
+    </span>
+  </div>
+  <div class="bg-white shadow rounded-lg p-6 mb-6">
+    <h2 class="text-lg font-medium text-gray-900 mb-4">Details</h2>
+    <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Centre</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ admission.centre.name }} ({{ admission.centre.code }})</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Academic Year</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ admission.academic_year.label }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Course</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ admission.course.code }} - {{ admission.course.name }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Batch</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ admission.batch.code }}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Enquired At</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ admission.enquired_at }}</dd>
+      </div>
+      {% if admission.enrolled_at %}
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Enrolled At</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{ admission.enrolled_at }} by {{ admission.enrolled_by }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+  </div>
+  {% if admission.status == 'ENQUIRED' %}
+    {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'MANAGEMENT' or request.user.role == 'ADMISSIONS' %}
+    <form method="post" action="{% url 'admissions:enroll' admission.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700" onclick="return confirm('Enroll this student and generate student ID?');">Enroll</button>
+    </form>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
