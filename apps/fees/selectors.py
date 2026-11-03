@@ -29,6 +29,7 @@ class FeeSummary:
     overdue_outstanding: Decimal
     not_yet_due_outstanding: Decimal
     undated_outstanding: Decimal
+    available_credit: Decimal = ZERO
 
 
 def effective_due_date(installment: FeeInstallment) -> date | None:
@@ -53,19 +54,23 @@ def plan_history(admission):
 
 def installment_outstanding(installment: FeeInstallment, as_of: date | None = None) -> Decimal:
     """
-    Amount billed minus posted allocations.
+    Amount billed minus active allocations (payments and advance credit).
 
-    Payment allocations arrive in Phase 5. Until then nothing has been
-    allocated, so the outstanding balance equals the approved amount. The
-    ``as_of`` parameter is accepted so callers already pass a reporting date,
-    and so the signature does not change when allocations are added.
+    ``as_of`` is accepted for reporting calls; allocations are current-state
+    rows and are not date-filtered, so the value is the same for every as-of
+    date. Overdue classification is applied by callers using the effective
+    due date.
     """
-    del as_of  # Allocation history is introduced in Phase 5.
-    return installment.amount
+    del as_of
+    from apps.payments.selectors import installment_outstanding as _outstanding
+
+    return _outstanding(installment)
 
 
 def admission_fee_summary(admission, as_of: date | None = None) -> FeeSummary:
-    """Derive billed, paid, outstanding, overdue, and undated totals."""
+    """Derive billed, paid, outstanding, overdue, undated, and credit totals."""
+    from apps.payments.selectors import available_credit
+
     as_of = as_of or timezone.localdate()
     plan = current_fee_plan(admission)
     if plan is None:
@@ -77,6 +82,7 @@ def admission_fee_summary(admission, as_of: date | None = None) -> FeeSummary:
             overdue_outstanding=ZERO,
             not_yet_due_outstanding=ZERO,
             undated_outstanding=ZERO,
+            available_credit=available_credit(admission),
         )
 
     total_billed = ZERO
@@ -108,7 +114,31 @@ def admission_fee_summary(admission, as_of: date | None = None) -> FeeSummary:
         overdue_outstanding=overdue_outstanding,
         not_yet_due_outstanding=not_yet_due_outstanding,
         undated_outstanding=undated_outstanding,
+        available_credit=available_credit(admission),
     )
+
+
+def pending_reassignments(user, centre=None):
+    """Reassignment requests visible to ``user``, oldest first."""
+    from apps.fees.models import FeePlanReassignment
+
+    queryset = (
+        FeePlanReassignment.objects.filter(
+            admission__centre__in=user.get_accessible_centres(),
+        )
+        .select_related(
+            "admission__student",
+            "admission__centre",
+            "from_plan",
+            "to_plan",
+            "requested_by",
+            "decided_by",
+        )
+        .order_by("-requested_at", "-pk")
+    )
+    if centre is not None:
+        queryset = queryset.filter(admission__centre=centre)
+    return queryset
 
 
 def pending_due_date_requests(user, centre=None):

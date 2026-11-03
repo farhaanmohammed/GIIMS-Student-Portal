@@ -122,18 +122,27 @@ class CreateDraftFeePlanTests(FeeTestBase):
         with self.assertRaisesMessage(ValueError, "already has an approved fee plan"):
             self.make_draft_plan(admission=admission)
 
-    def test_creation_requires_a_plan_manager_role(self):
+    def test_creation_requires_a_plan_editor_role(self):
+        # A3: ACCOUNTS may draft fee plans; ADMISSIONS may not.
         admission = self.make_admission()
+        plan = create_draft_fee_plan(
+            admission,
+            course_fee=COURSE_FEE,
+            gst_rate=GST_RATE,
+            components=default_components(),
+            actor=self.accounts,
+        )
+        self.assertEqual(plan.status, FeePlan.Status.DRAFT)
+        self.assertFalse(plan.approved_by_id)
 
-        for actor in (self.accounts, self.admissions):
-            with self.subTest(role=actor.role), self.assertRaises(PermissionDenied):
-                create_draft_fee_plan(
-                    admission,
-                    course_fee=COURSE_FEE,
-                    gst_rate=GST_RATE,
-                    components=default_components(),
-                    actor=actor,
-                )
+        with self.assertRaises(PermissionDenied):
+            create_draft_fee_plan(
+                self.make_admission(),
+                course_fee=COURSE_FEE,
+                gst_rate=GST_RATE,
+                components=default_components(),
+                actor=self.admissions,
+            )
 
     def test_creation_rejects_wrong_component_count(self):
         components = default_components()[:-1]
@@ -243,11 +252,14 @@ class UpdateDraftFeePlanTests(FeeTestBase):
         with self.assertRaises(ValueError):
             update_draft_fee_plan(plan, notes="Nope", actor=self.admin)
 
-    def test_update_requires_a_plan_manager_role(self):
+    def test_update_requires_a_plan_editor_role(self):
+        # A3: ACCOUNTS may edit drafts; ADMISSIONS may not.
         plan = self.make_draft_plan()
+        updated = update_draft_fee_plan(plan, notes="Accounts edit", actor=self.accounts)
+        self.assertEqual(updated.notes, "Accounts edit")
 
         with self.assertRaises(PermissionDenied):
-            update_draft_fee_plan(plan, notes="Nope", actor=self.accounts)
+            update_draft_fee_plan(plan, notes="Nope", actor=self.admissions)
 
 
 class ApproveFeePlanTests(FeeTestBase):
@@ -380,6 +392,15 @@ class CancelDraftFeePlanTests(FeeTestBase):
 
         with self.assertRaisesMessage(ValueError, "at least 10 characters"):
             cancel_draft_fee_plan(plan, self.admin, "too short")
+
+    def test_accounts_and_admissions_cannot_cancel(self):
+        # A3: cancelling stays with the approver roles, not the editors.
+        for actor in (self.accounts, self.admissions):
+            plan = self.make_draft_plan()
+            with self.subTest(role=actor.role), self.assertRaises(PermissionDenied):
+                cancel_draft_fee_plan(plan, actor, "Attempting to cancel this draft.")
+            plan.refresh_from_db()
+            self.assertEqual(plan.status, FeePlan.Status.DRAFT)
 
     def test_approved_plan_cannot_be_cancelled(self):
         plan = self.make_approved_plan()

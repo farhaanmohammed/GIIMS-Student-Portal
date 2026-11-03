@@ -7,6 +7,7 @@ from apps.fees.models import DueDateChangeRequest, FeePlan
 from apps.fees.services import (
     apply_due_date_revision,
     approve_fee_plan,
+    cancel_draft_fee_plan,
     create_draft_fee_plan,
     create_fee_plan_version,
     decide_due_date_change,
@@ -30,8 +31,9 @@ class ServiceRoleMatrixTests(FeeTestBase):
         self.approved_plan = self.make_approved_plan(admission=self.admission)
         self.installment = self.course_installments(self.approved_plan)[0]
 
-    def test_only_admin_and_management_can_create_draft_plans(self):
-        for actor in (self.admin, self.management):
+    def test_plan_editors_can_create_draft_plans(self):
+        # A3: ACCOUNTS is a plan editor; ADMISSIONS is not.
+        for actor in (self.admin, self.management, self.accounts):
             with self.subTest(role=actor.role):
                 plan = create_draft_fee_plan(
                     self.make_admission(),
@@ -42,15 +44,14 @@ class ServiceRoleMatrixTests(FeeTestBase):
                 )
                 self.assertEqual(plan.status, FeePlan.Status.DRAFT)
 
-        for actor in (self.accounts, self.admissions):
-            with self.subTest(role=actor.role), self.assertRaises(PermissionDenied):
-                create_draft_fee_plan(
-                    self.make_admission(),
-                    course_fee=COURSE_FEE,
-                    gst_rate=GST_RATE,
-                    components=default_components(),
-                    actor=actor,
-                )
+        with self.subTest(role=self.admissions.role), self.assertRaises(PermissionDenied):
+            create_draft_fee_plan(
+                self.make_admission(),
+                course_fee=COURSE_FEE,
+                gst_rate=GST_RATE,
+                components=default_components(),
+                actor=self.admissions,
+            )
 
     def test_only_admin_and_management_can_approve_plans(self):
         for actor in (self.admin, self.management):
@@ -63,18 +64,30 @@ class ServiceRoleMatrixTests(FeeTestBase):
             with self.subTest(role=actor.role), self.assertRaises(PermissionDenied):
                 approve_fee_plan(draft, actor)
 
-    def test_only_admin_and_management_can_version_plans(self):
-        for actor in (self.admin, self.management):
+    def test_plan_editors_can_version_plans(self):
+        # A3: ACCOUNTS may create a new draft version; ADMISSIONS may not.
+        for actor in (self.admin, self.management, self.accounts):
             plan = self.make_approved_plan()
             with self.subTest(role=actor.role):
                 new_version = create_fee_plan_version(plan, actor)
                 self.assertEqual(new_version.status, FeePlan.Status.DRAFT)
                 self.assertEqual(new_version.supersedes, plan)
 
+        plan = self.make_approved_plan()
+        with self.subTest(role=self.admissions.role), self.assertRaises(PermissionDenied):
+            create_fee_plan_version(plan, self.admissions)
+
+    def test_only_admin_and_management_can_approve_or_cancel_plans(self):
+        # A3 split: editors draft, approvers approve and cancel.
         for actor in (self.accounts, self.admissions):
-            plan = self.make_approved_plan()
+            draft = self.make_draft_plan()
             with self.subTest(role=actor.role), self.assertRaises(PermissionDenied):
-                create_fee_plan_version(plan, actor)
+                approve_fee_plan(draft, actor)
+            with (
+                self.subTest(role=actor.role, action="cancel"),
+                self.assertRaises(PermissionDenied),
+            ):
+                cancel_draft_fee_plan(draft, actor, "Attempting to cancel this draft.")
 
     def test_admin_management_and_accounts_can_apply_due_date_revisions(self):
         for index, actor in enumerate((self.admin, self.management, self.accounts)):

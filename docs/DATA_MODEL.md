@@ -203,26 +203,81 @@ inside the total, not additional to it.
 | 1 | Original approved installment amount | `FeeInstallment.amount` | No, after plan approval |
 | 2 | Original suggested due date | `FeeInstallment.original_due_date` | Never |
 | 3 | Revised student-specific due date | Latest applied `InstallmentDueDateRevision.revised_due_date` | Append-only |
-| 4 | Actual amount paid | `Payment` + `PaymentAllocation` (Phase 5) | Reversal only |
-| 5 | Outstanding balance | Derived by selector | Never stored |
-| 6 | Actual payment date | `Payment.paid_on` (Phase 5) | Reversal only |
+| 4 | Actual amount paid | `Payment` + `InstallmentAllocation` (`apps.payments`) | Reversal only |
+| 5 | Outstanding balance | Derived by selector (`amount - active allocations`) | Never stored |
+| 6 | Actual payment date | `Payment.paid_on` (`apps.payments`) | Reversal only |
 
 Keep these distinct in the schema, selectors, and UI; none may be produced by
 overwriting another. A deadline change moves concept 3 only. It never alters an
 installment amount, the plan totals, the original due date, recorded payments, or the
 outstanding balance formula.
 
-## Planned / logical entities (Phases 5–6)
+## Phase 5 — Payments, receipts, credit, refunds & reversals (implemented, `apps.payments`)
 
-- **Payment**: admission, amount, method, paid/posted date, reference, status, actor, idempotency key.
-- **PaymentAllocation**: payment, installment, allocated amount.
+### ReceiptSequence
+Per-centre, per-financial-year counter. Unique `(centre, financial_year)`,
+`last_sequence >= 0`. Locked with `select_for_update()` during collection so two
+concurrent payments cannot receive the same number.
+
+### Payment
+One collection against an admission. `centre` is the collection centre and may
+differ from `admission.centre`. `amount > 0`; unique nullable `request_key` for
+idempotency; status `POSTED`/`REVERSED`; `paid_on` drives the receipt's financial
+year; indexes on `(centre, paid_on)` and `(admission, paid_on)`.
+
+### Receipt
+One-to-one with `Payment`. Stores `number` (unique), `centre`, `financial_year`,
+`sequence`, `status`, `issued_by`, `issued_at`. Unique
+`(centre, financial_year, sequence)`. Never edited, renumbered or reused; a
+reversal flips `status` to `REVERSED` and keeps the number forever.
+
+### InstallmentAllocation
+Explicit amount on one `FeeInstallment`, sourced from a `Payment` or an
+`AdvanceCredit` lot. `amount > 0`; source/link consistency check; ACTIVE rows have
+no reversal metadata, REVERSED rows require actor/time/reason; unique
+`(request_key, credit)` for credit applications. Rows are never deleted.
+
+### AdvanceCredit
+A credit lot from an overpayment (linked to its payment) or a fee-plan
+reassignment (no single source payment). `original_amount > 0`,
+`0 <= remaining_amount <= original_amount`, source/payment consistency, and at
+most one overpayment lot per payment. `remaining_amount` is reconciled against
+active applications and refunds by `credit_remaining_from_history()`.
+
+### Refund and RefundCreditAllocation
+Refund request against one credit lot: amount, reason, mode, requestor,
+`original_payment`, status, approver, decision time, actual `refunded_on`, unique
+`request_key`. Pending rows carry no decision metadata; decided rows require it;
+approved rows require a refund date. `RefundCreditAllocation` is append-only and
+unique per `(refund, credit)`.
+
+### PaymentReversal
+One-to-one with `Payment`, so a payment can never be reversed twice. Stores amount,
+mandatory reason, requestor, approver, decision metadata and a unique
+`request_key`. Approval compensates allocations, credit and receipt status without
+deleting anything.
+
+### FinancialAuditEvent
+Append-only log of every financial event with admission, actor, optional payment/
+installment references, amount and detail. `save()` on an existing row and
+`delete()` both raise.
+
+### FeePlanReassignment (`apps.fees`)
+Workflow row for A4: `from_plan`, `to_plan`, mandatory `reason`, snapshotted
+`previous_total`/`proposed_total`/`difference`, `had_payments`, requestor,
+decision metadata and unique `request_key`. Checks enforce distinct plans, a
+difference equal to the total delta, decision metadata, and one pending request per
+admission. Approval reconciles money through allocation reversal + credit rather
+than editing payments or receipts.
+
+## Planned / logical entities (Phase 6)
+
 - **FeeAdjustment**: deferred. Any adjustment to agreed fees requires a separately
   designed, authorised, and auditable workflow with its own approval rules. No discount,
-  waiver, scholarship, or concession module exists or is planned for Phase 4.
-- **PaymentReversal**: payment, reason, actor, timestamp, reversal metadata.
-- **Receipt**: payment, receipt number, issue timestamp, status/void metadata.
+  waiver, scholarship, or concession module exists.
 - **StudentDocument**: student/admission, document type, private storage key, metadata. Deferred to a later phase.
-- **AuditEvent**: actor, event type, target reference, timestamp, safe change summary.
+- **Report/export models**: Phase 6 reporting and export audit, if persisted snapshots
+  become necessary. Balances remain derived.
 
 ## Key rules
 - A student can have more than one admission; model this explicitly.
@@ -230,8 +285,10 @@ outstanding balance formula.
 - Use DecimalField for money.
 - Avoid a manually editable outstanding balance.
 - Use deliberate on-delete policies and database constraints.
-- Payment allocation policy (oldest-due-first versus user-selected) is still an open decision.
-- Define receipt number uniqueness scope before implementation.
+- Payment allocation policy is confirmed: staff-selected with a FIFO suggestion, partial and multi-installment payments, never beyond an installment's outstanding amount, excess held as advance credit.
+- Receipt numbering is confirmed as centre-scoped per Indian financial year, generated by a locked counter and protected by unique constraints; numbers are never reused.
+- Every payment, receipt, allocation, credit movement, refund and reversal is written through `apps.payments.services` inside a transaction with row locking; the Django admin for these models is read-only.
+- Financial history is corrected by reversal and reconciliation, never by deletion. Payments, receipts and allocations keep their original rows.
 - Do not store derived seat counts on `Batch`; calculate availability when admissions are implemented.
 - Fee plans and installment schedules are implemented in `apps.fees`; see the Phase 4
   section above. No discount or waiver module exists or is planned, so keep discount

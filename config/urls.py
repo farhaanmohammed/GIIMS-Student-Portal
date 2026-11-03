@@ -27,5 +27,6 @@ urlpatterns = [
     path("students/", include("apps.students.urls")),
     path("admissions/", include("apps.admissions.urls")),
     path("fees/", include("apps.fees.urls")),
+    path("payments/", include("apps.payments.urls")),
     path("", dashboard_view, name="dashboard"),
 ]

@@ -12,7 +12,7 @@ This document tracks implementation progress across phases, verification runs, t
 | **Phase 2** | **Academic Masters & Structure** | `AcademicYear`, `Course`, `Batch` masters, centre-scoped batch management, admin registration, role-gated CRUD/HTMX screens. | **Completed** | 2026-10-25 |
 | **Phase 3** | **Student & Admission Management** | Durable `Student` profile, `Admission` lifecycle (`ENQUIRED` to `ENROLLED`), concurrency-safe student ID generation on enrollment, centre-scoped views with search/filters. Document uploads deferred. | **Completed** | 2026-11-02 |
 | **Phase 4** | **Fee Plans & Installment Schedules** | `FeePlan` with a per-plan GST snapshot and six components per plan (application/admission stage-based plus four dated course installments), approved-plan immutability with versioned corrections, due-date request/approval workflow with append-only applied revisions, and as-of overdue calculation. No discount or waiver module. | **Completed** | 2026-11-02 |
-| **Phase 5** | **Payments, Allocations & Traceable Receipts** | Concurrency-safe payments, sequential receipt numbers, FIFO allocations, reversal/correction workflows. | Planned | — |
+| **Phase 5** | **Payments, Allocations & Traceable Receipts** | Concurrency-safe payments, centre-scoped sequential receipt numbers (`GIIMS/{CENTRE_CODE}/{FYyy-yy}/{000001}`), FIFO-suggested staff-selected allocations, advance-credit lots, refunds, reversals, financial audit trail, and controlled fee-plan reassignment. | **Completed** | 2026-11-03 |
 | **Phase 6** | **Ledgers, Reports, Audit & Deployment** | Student ledger, collection and outstanding reports, audit logging, security review, production checklist. | Planned | — |
 
 ---
@@ -260,6 +260,48 @@ See [`PHASE4_FEE_PLANS.md`](PHASE4_FEE_PLANS.md) §16. In brief:
 - Batch capacity, document uploads, and refund/reversal policy remain open or deferred.
 - CSRF is enforced by middleware but Django's test client bypasses validation, so protected POSTs are not asserted end-to-end.
 
+### Phase 5: Payments, Allocations & Traceable Receipts
+- **Status:** Completed
+- **Date:** 2026-11-03
+
+#### Confirmed Business Policies
+- **A3 Fee Plan Roles**: `ADMIN` and `MANAGEMENT` create, edit, approve, cancel, and activate fee plans. `ACCOUNTS` may create and edit draft plans and create new draft versions, but cannot approve or cancel plans. `ADMISSIONS` remains read-only on fee plans.
+- **A4 Controlled Fee-Plan Reassignment**: `ACCOUNTS`, `ADMIN`, and `MANAGEMENT` may request reassignment to a draft plan version with a mandatory reason (minimum 10 characters); only `ADMIN` and `MANAGEMENT` may approve or reject. Approval reconciles existing financial activity atomically (reversing old-plan allocations, returning credit-funded allocations to their lots, converting payment-funded allocations into a `REASSIGNMENT` credit lot, approving the target plan, and re-applying available credit FIFO) so no payment or receipt is ever lost or silently rewritten.
+- **A5 Staff-Selected Allocation with FIFO Suggestion**: `record_payment()` supports staff-selected explicit allocations, an automatic FIFO suggestion (`allocations=None`), or retaining the full payment as advance credit (`allocations=[]`). No allocation may exceed an installment's outstanding balance, and any unallocated excess becomes an `OVERPAYMENT` `AdvanceCredit` lot.
+- **Centre-Scoped Receipt Numbering**: Format `GIIMS/{CENTRE_CODE}/{FYyy-yy}/{000001}`, using the Indian financial year (`1 April`–`31 March`) derived from `Payment.paid_on` and a row-locked `ReceiptSequence` counter per `(centre, financial_year)`. Receipt numbers are never reused, edited, or deleted.
+- **Advance Credit, Refunds & Reversals**: `AdvanceCredit` lots track `original_amount` and `remaining_amount` and are consumed oldest-first by `apply_advance_credit()`. Refunds (`request_refund` / `decide_refund`) and payment reversals (`request_payment_reversal` / `decide_payment_reversal`) are requested by `ACCOUNTS`/`ADMIN`/`MANAGEMENT` and decided by `ADMIN`/`MANAGEMENT`. Reversals compensate allocations, credit lots, and receipt status (`REVERSED`) without hard-deleting any row.
+- **Multi-Centre Semantics**: `Payment.centre` is the collection centre and is stored separately from `Payment.admission.centre`; all selectors and views enforce server-side centre scoping.
+
+#### Design Reference
+- [PHASE5_PAYMENTS.md](PHASE5_PAYMENTS.md) — canonical Phase 5 design and implementation contract.
+
+#### Implemented Features
+1. **Payments Application (`apps.payments`)**:
+   - `PaymentsConfig` registered in `INSTALLED_APPS`; routes mounted at `/payments/` with namespace `payments`.
+   - Nine models in `apps/payments/models.py` (`ReceiptSequence`, `Payment`, `Receipt`, `AdvanceCredit`, `InstallmentAllocation`, `Refund`, `RefundCreditAllocation`, `PaymentReversal`, `FinancialAuditEvent`) with check/unique constraints and indexes in `apps/payments/migrations/0001_initial.py`.
+2. **Fee-Plan Reassignment (`apps.fees`)**:
+   - `FeePlanReassignment` model and migration `apps/fees/migrations/0002_feeplanreassignment.py`.
+   - `request_fee_plan_reassignment`, `decide_fee_plan_reassignment`, and `pending_reassignments` in `apps/fees/reassignment_services.py`, plus views/routes under `/fees/reassignments/`.
+3. **Payment, Credit, Refund & Reversal Services (`apps/payments/services.py`)**:
+   - `record_payment`, `apply_advance_credit`, `request_refund`, `decide_refund`, `request_payment_reversal`, and `decide_payment_reversal`, all wrapped in `transaction.atomic()` with row-level locks (`select_for_update()`) and append-only `FinancialAuditEvent` logging.
+4. **Selectors & Balance Integration (`apps/payments/selectors.py`, `apps/fees/selectors.py`)**:
+   - `installment_allocated_total`, `installment_outstanding`, `available_credit`, `credit_remaining_from_history`, `fifo_suggestions`, `payments_for_user`, `credit_lots_for_user`, `admission_payment_total`, `pending_refunds`, `pending_reversals`, and `credit_history`.
+   - `apps/fees/selectors.py` now derives `installment_outstanding` and `admission_fee_summary` (`total_paid`, `total_outstanding`, `overdue_amount`, `available_credit`) from active `InstallmentAllocation` and `AdvanceCredit` rows.
+5. **Views, Forms, Templates & Read-Only Admin**:
+   - Payment list/detail/create, credit application, refund request/queue/decision, reversal request/queue/decision, and reassignment request/queue/decision screens under `templates/payments/` and `templates/fees/`.
+   - All payment-domain models and `FeePlanReassignment` registered as read-only in Django Admin.
+6. **Tests**:
+   - 199 new tests across `apps/payments/tests/` (`test_allocations.py`, `test_audit.py`, `test_constraints.py`, `test_credit.py`, `test_forms.py`, `test_money.py`, `test_permissions.py`, `test_receipts.py`, `test_refunds.py`, `test_reversals.py`, `test_selectors.py`, `test_smoke.py`, `test_views.py`) and `apps/fees/tests/test_reassignment.py`, bringing the suite to 501 tests total.
+
+#### Verification Run Results
+Executed from the repository root on 2026-11-03:
+- `uv run python manage.py check` → `System check identified no issues (0 silenced).`
+- `uv run python manage.py makemigrations --check --dry-run` → `No changes detected`
+- `uv run python manage.py test` → `501 tests` (`apps.payments` + `apps.fees` + Phases 1–3)
+- `uv run ruff check .` → `All checks passed!`
+- `uv run ruff format --check .` → `135 files already formatted`
+- `npm run build` → HTMX/Alpine assets copied; Tailwind CSS v4 minified
+
 ---
 
 ## Open Decisions & Items to Confirm Before Next Phases
@@ -276,12 +318,10 @@ See [`PHASE4_FEE_PLANS.md`](PHASE4_FEE_PLANS.md) §16. In brief:
    - Whether batch dates must fall inside the linked academic year's date range. This is not constrained.
    - Fee templates per course or batch are not modelled on the academic masters; Phase 4 snapshots agreed amounts per admission instead (see [`PHASE4_FEE_PLANS.md`](PHASE4_FEE_PLANS.md)).
 3. **Fees & Receipts (Phase 5)**:
-   - Financial receipt numbering scope (centre-scoped vs portal-wide sequence); still open.
    - **Resolved in Phase 4:** A1 (INR 1,97,650 is GST-inclusive: taxable 1,67,500 + GST 30,150) and A2 (the four `COURSE` components must sum to INR 1,86,650; the split and dates are entered per plan). See [`PHASE4_FEE_PLANS.md`](PHASE4_FEE_PLANS.md) §11 and §14.
-   - A3 — Who creates draft plans: the permissions matrix implements `ADMIN`/`MANAGEMENT` only. Confirm whether `ACCOUNTS` may also create or edit drafts.
-   - A4 — Reassignment: the explicit authorised process for moving an existing admission to a corrected fee structure (who may trigger it, and whether it requires a recorded reason).
-   - A5 — Partial-payment allocation policy (oldest-due-first vs staff-selected installment); still Phase 5.
-   - Advance-payment, refund, and reversal policy.
+   - **Resolved in Phase 5:** A3 (`ACCOUNTS` creates and edits drafts; only `ADMIN`/`MANAGEMENT` approve, cancel or activate), A4 (controlled reassignment with a mandatory reason and `ADMIN`/`MANAGEMENT` approval), A5 (staff-selected allocation with a FIFO suggestion), centre-scoped receipt numbering, and advance-credit/refund/reversal policies. See [`PHASE5_PAYMENTS.md`](PHASE5_PAYMENTS.md).
+   - Payment-mode list, cheque/DD clearance state, self-approval (four-eyes) rules, reversal-after-reassignment behaviour, refund settlement references, and receipt printing remain open. See [`PHASE5_PAYMENTS.md`](PHASE5_PAYMENTS.md) §15.
+   - No discount, waiver, scholarship, concession, write-off, late fee, interest, or penalty module exists or is planned; any such adjustment requires a separately designed and approved workflow.
 4. **Production Hardening (Phase 6)**:
    - Resolve the six `check --deploy` warnings (HSTS, SSL redirect, secure session/CSRF cookies, non-console email backend, `DEBUG=False`) in the production settings, not in local development.
    - Private document storage and backup/retention handling, once uploads are implemented.

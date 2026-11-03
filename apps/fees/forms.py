@@ -251,3 +251,28 @@ class DueDateDecisionForm(forms.Form):
         label="Decision note",
         widget=forms.Textarea(attrs={"class": INPUT_CLASSES, "rows": 2}),
     )
+
+
+class FeeReassignmentForm(forms.Form):
+    """Raise a reassignment request with a mandatory reason."""
+
+    reason = forms.CharField(
+        min_length=10,
+        label="Reason",
+        help_text="At least 10 characters. Stored permanently in the audit trail.",
+        widget=forms.Textarea(attrs={"class": INPUT_CLASSES, "rows": 3}),
+    )
+    request_key = forms.CharField(widget=forms.HiddenInput, required=False)
+
+
+class FeeReassignmentDecisionForm(forms.Form):
+    decision = forms.ChoiceField(
+        choices=(("approve", "Approve"), ("reject", "Reject")),
+        widget=forms.RadioSelect,
+        label="Decision",
+    )
+    note = forms.CharField(
+        required=False,
+        label="Decision note",
+        widget=forms.Textarea(attrs={"class": INPUT_CLASSES, "rows": 2}),
+    )

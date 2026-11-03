@@ -137,14 +137,15 @@ class FeePlanCreateViewTests(FeeViewTestBase):
 
         self.assertEqual(response.status_code, 403)
 
-    def test_accounts_role_cannot_open_the_create_form(self):
+    def test_accounts_role_can_open_the_create_form(self):
         self.client.force_login(self.accounts)
 
         response = self.client.get(
             reverse("fees:fee_plan_create"), {"admission": self.admission.pk}
         )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Stage-based charges")
 
     def test_management_role_can_open_the_create_form(self):
         self.client.force_login(self.management)
