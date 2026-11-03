@@ -212,7 +212,7 @@ overwriting another. A deadline change moves concept 3 only. It never alters an
 installment amount, the plan totals, the original due date, recorded payments, or the
 outstanding balance formula.
 
-## Phase 5 — Payments, receipts, credit, refunds & reversals (implemented, `apps.payments`)
+## Phase 5 & Phase 6 — Payments, receipts, credit, refunds, reversals & reporting (`apps.payments`, `apps.reports`)
 
 ### ReceiptSequence
 Per-centre, per-financial-year counter. Unique `(centre, financial_year)`,
@@ -229,7 +229,9 @@ year; indexes on `(centre, paid_on)` and `(admission, paid_on)`.
 One-to-one with `Payment`. Stores `number` (unique), `centre`, `financial_year`,
 `sequence`, `status`, `issued_by`, `issued_at`. Unique
 `(centre, financial_year, sequence)`. Never edited, renumbered or reused; a
-reversal flips `status` to `REVERSED` and keeps the number forever.
+reversal flips `status` to `REVERSED` and keeps the number forever. Printable HTML
+and PDF views log `RECEIPT_REPRINTED` on `FinancialAuditEvent` without creating new
+rows.
 
 ### InstallmentAllocation
 Explicit amount on one `FeeInstallment`, sourced from a `Payment` or an
@@ -258,9 +260,13 @@ mandatory reason, requestor, approver, decision metadata and a unique
 deleting anything.
 
 ### FinancialAuditEvent
-Append-only log of every financial event with admission, actor, optional payment/
-installment references, amount and detail. `save()` on an existing row and
-`delete()` both raise.
+Append-only log of every financial event (`PAYMENT_RECORDED`, `RECEIPT_ISSUED`,
+`RECEIPT_REPRINTED`, `ALLOCATION_CREATED`, `CREDIT_CREATED`, `CREDIT_APPLIED`,
+`REFUND_REQUESTED`, `REFUND_APPROVED`, `REFUND_REJECTED`, `REVERSAL_REQUESTED`,
+`REVERSAL_APPROVED`, `REVERSAL_REJECTED`, `REASSIGNMENT_REQUESTED`,
+`REASSIGNMENT_APPROVED`, `REASSIGNMENT_REJECTED`) with admission, actor, optional
+payment/installment references, amount, and detail. `save()` on an existing row
+and `delete()` both raise.
 
 ### FeePlanReassignment (`apps.fees`)
 Workflow row for A4: `from_plan`, `to_plan`, mandatory `reason`, snapshotted
@@ -270,14 +276,21 @@ difference equal to the total delta, decision metadata, and one pending request 
 admission. Approval reconciles money through allocation reversal + credit rather
 than editing payments or receipts.
 
-## Planned / logical entities (Phase 6)
+### Student Ledgers & Financial Reports (`apps.reports`)
+Derived read-only dataclasses (`StudentLedgerData`, `LedgerInstallmentRow`,
+`OutstandingReportData`, `OutstandingAdmissionRow`, `OverdueInstallmentRow`,
+`CollectionReportData`, `CollectionSummaryRow`) computed on demand from the
+authoritative `FeePlan`, `FeeInstallment`, `InstallmentDueDateRevision`, `Payment`,
+`Receipt`, `InstallmentAllocation`, `AdvanceCredit`, `Refund`, `PaymentReversal`,
+`FeePlanReassignment`, and `FinancialAuditEvent` tables. Balances are never stored
+as mutable columns.
+
+## Deferred entities
 
 - **FeeAdjustment**: deferred. Any adjustment to agreed fees requires a separately
   designed, authorised, and auditable workflow with its own approval rules. No discount,
   waiver, scholarship, or concession module exists.
 - **StudentDocument**: student/admission, document type, private storage key, metadata. Deferred to a later phase.
-- **Report/export models**: Phase 6 reporting and export audit, if persisted snapshots
-  become necessary. Balances remain derived.
 
 ## Key rules
 - A student can have more than one admission; model this explicitly.

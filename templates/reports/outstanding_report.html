@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Outstanding Balance Report - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <p class="text-sm text-gray-500">
+        <a href="{% url 'reports:report_hub' %}" class="text-indigo-600 hover:text-indigo-900">Reports</a> / Outstanding Balance Report
+      </p>
+      <h1 class="mt-1 text-2xl font-semibold text-gray-900">Student-Wise &amp; Aggregate Outstanding Report</h1>
+      <p class="mt-1 text-sm text-gray-500">As of {{ report.as_of|date:"d M Y" }} &middot; Separates total, overdue, not-yet-due, stage-based undated balances, and available advance credit.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'reports:outstanding_report_csv' %}{% if querystring %}?{{ querystring }}{% endif %}" class="rounded-md border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Export CSV</a>
+      <a href="{% url 'reports:outstanding_report_pdf' %}{% if querystring %}?{{ querystring }}{% endif %}" class="rounded-md bg-slate-800 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-700">Download PDF</a>
+    </div>
+  </div>
+
+  <!-- Aggregate Summary Cards -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+    <div class="bg-white shadow rounded-lg p-4">
+      <p class="text-xs font-medium text-gray-500 uppercase">Total Billed</p>
+      <p class="mt-1 text-lg font-semibold text-gray-900">{{ report.total_billed|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4">
+      <p class="text-xs font-medium text-gray-500 uppercase">Total Paid</p>
+      <p class="mt-1 text-lg font-semibold text-emerald-700">{{ report.total_paid|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4">
+      <p class="text-xs font-medium text-gray-500 uppercase">Total Outstanding</p>
+      <p class="mt-1 text-lg font-semibold text-gray-900">{{ report.total_outstanding|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4">
+      <p class="text-xs font-medium text-gray-500 uppercase">Overdue Balance</p>
+      <p class="mt-1 text-lg font-semibold text-red-700">{{ report.overdue_outstanding|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4">
+      <p class="text-xs font-medium text-gray-500 uppercase">Not-Yet-Due / Undated</p>
+      <p class="mt-1 text-sm font-semibold text-gray-900">
+        {{ report.not_yet_due_outstanding|floatformat:2 }}
+        <span class="block text-xs font-normal text-gray-500">Undated: {{ report.undated_outstanding|floatformat:2 }}</span>
+      </p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4">
+      <p class="text-xs font-medium text-gray-500 uppercase">Available Credit</p>
+      <p class="mt-1 text-lg font-semibold text-indigo-700">{{ report.available_credit|floatformat:2 }}</p>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <form method="get" class="bg-white shadow rounded-lg p-4 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+    <div>
+      <label for="id_as_of" class="block text-xs font-medium text-gray-600 uppercase">As-Of Date</label>
+      <input id="id_as_of" type="date" name="as_of" value="{{ filters.as_of }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label for="id_centre" class="block text-xs font-medium text-gray-600 uppercase">Centre</label>
+      <select id="id_centre" name="centre" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All accessible centres</option>
+        {% for c in centre_options %}
+          <option value="{{ c.pk }}" {% if filters.centre == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.code }} - {{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_course" class="block text-xs font-medium text-gray-600 uppercase">Course</label>
+      <select id="id_course" name="course" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All courses</option>
+        {% for cr in course_options %}
+          <option value="{{ cr.pk }}" {% if filters.course == cr.pk|stringformat:"s" %}selected{% endif %}>{{ cr.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_batch" class="block text-xs font-medium text-gray-600 uppercase">Batch</label>
+      <select id="id_batch" name="batch" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All batches</option>
+        {% for b in batch_options %}
+          <option value="{{ b.pk }}" {% if filters.batch == b.pk|stringformat:"s" %}selected{% endif %}>{{ b.centre.code }} - {{ b.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_q" class="block text-xs font-medium text-gray-600 uppercase">Student Search</label>
+      <input id="id_q" type="text" name="q" value="{{ filters.q }}" placeholder="Name or ID..." class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+    </div>
+    <div class="flex items-end justify-between gap-2">
+      <label class="inline-flex items-center gap-1.5 text-xs text-gray-700 pb-2">
+        <input type="checkbox" name="only_outstanding" value="1" {% if filters.only_outstanding == '1' %}checked{% endif %} class="rounded border-gray-300">
+        Only unpaid
+      </label>
+      <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Apply</button>
+    </div>
+  </form>
+
+  <!-- Table -->
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-base font-medium text-gray-900">Admission Balances ({{ total_count }})</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Centre / Batch</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Billed (INR)</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid (INR)</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Outstanding (INR)</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Overdue (INR)</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Not-Yet-Due (INR)</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Undated (INR)</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Credit (INR)</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+          {% for r in rows %}
+          <tr>
+            <td class="px-4 py-3">
+              <a href="{% url 'reports:student_ledger' r.admission.pk %}?as_of={{ filters.as_of }}" class="font-medium text-indigo-600 hover:text-indigo-900">
+                {{ r.admission.student.get_full_name }}
+              </a>
+              <span class="block text-xs font-mono text-gray-500">{{ r.admission.student.student_id|default:"No ID" }}</span>
+            </td>
+            <td class="px-4 py-3 text-gray-600">{{ r.admission.centre.code }} &middot; {{ r.admission.course.code }}/{{ r.admission.batch.code }}</td>
+            <td class="px-4 py-3 text-right text-gray-900">{{ r.total_billed|floatformat:2 }}</td>
+            <td class="px-4 py-3 text-right text-emerald-700">{{ r.total_paid|floatformat:2 }}</td>
+            <td class="px-4 py-3 text-right font-semibold text-gray-900">{{ r.total_outstanding|floatformat:2 }}</td>
+            <td class="px-4 py-3 text-right font-medium {% if r.overdue_outstanding > 0 %}text-red-700{% else %}text-gray-400{% endif %}">{{ r.overdue_outstanding|floatformat:2 }}</td>
+            <td class="px-4 py-3 text-right text-gray-700">{{ r.not_yet_due_outstanding|floatformat:2 }}</td>
+            <td class="px-4 py-3 text-right text-gray-700">{{ r.undated_outstanding|floatformat:2 }}</td>
+            <td class="px-4 py-3 text-right text-indigo-700">{{ r.available_credit|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="px-4 py-8 text-center text-gray-500">No approved fee plans match the selected filters.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

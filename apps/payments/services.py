@@ -871,3 +871,37 @@ def apply_credit_fifo(
         )
         available -= take
     return applied
+
+
+@transaction.atomic
+def log_receipt_reprint(
+    payment: Payment,
+    actor,
+    *,
+    format_name: str = "HTML",
+) -> FinancialAuditEvent:
+    """
+    Record a traceable receipt reprint event without creating a new payment or
+    changing the receipt number.
+
+    Only ``ADMIN``, ``MANAGEMENT``, and ``ACCOUNTS`` users with centre access to
+    the admission may reprint or download official receipts.
+    """
+    _require_role(actor, PAYMENT_ROLES, "reprint receipts")
+    payment = Payment.objects.select_related("admission__centre", "centre", "receipt").get(
+        pk=payment.pk
+    )
+    _require_centre_access(actor, payment.admission.centre)
+    receipt = getattr(payment, "receipt", None)
+    if receipt is None:
+        raise ValueError("This payment does not have an issued receipt.")
+
+    fmt = (format_name or "HTML").upper()
+    return _create_audit_event(
+        admission=payment.admission,
+        event_type=FinancialAuditEvent.Event.RECEIPT_REPRINTED,
+        actor=actor,
+        payment=payment,
+        amount=payment.amount,
+        detail=f"Receipt {receipt.number} ({receipt.status}) reprinted as {fmt}.",
+    )

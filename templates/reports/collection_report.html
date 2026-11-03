@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Collection &amp; Receipt Register - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <p class="text-sm text-gray-500">
+        <a href="{% url 'reports:report_hub' %}" class="text-indigo-600 hover:text-indigo-900">Reports</a> / Collection &amp; Receipt Register
+      </p>
+      <h1 class="mt-1 text-2xl font-semibold text-gray-900">Period-Wise Collection &amp; Receipt Register</h1>
+      <p class="mt-1 text-sm text-gray-500">
+        Separates collection-centre totals (where money was physically received) from admission-centre totals (the student's home centre).
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'reports:collection_report_csv' %}{% if querystring %}?{{ querystring }}{% endif %}" class="rounded-md border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Export CSV</a>
+      <a href="{% url 'reports:collection_report_pdf' %}{% if querystring %}?{{ querystring }}{% endif %}" class="rounded-md bg-slate-800 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-700">Download PDF</a>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white shadow rounded-lg p-4">
+      <p class="text-xs font-medium text-gray-500 uppercase">Posted Collections (INR)</p>
+      <p class="mt-1 text-xl font-bold text-emerald-700">{{ report.posted_total|floatformat:2 }}</p>
+      <p class="text-xs text-gray-500">{{ report.posted_count }} active receipt(s)</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4">
+      <p class="text-xs font-medium text-gray-500 uppercase">Reversed Collections (INR)</p>
+      <p class="mt-1 text-xl font-bold text-red-700">{{ report.reversed_total|floatformat:2 }}</p>
+      <p class="text-xs text-gray-500">{{ report.reversed_count }} reversed receipt(s)</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4">
+      <p class="text-xs font-medium text-gray-500 uppercase">Collection Centres Active</p>
+      <p class="mt-1 text-xl font-bold text-gray-900">{{ report.by_collection_centre|length }}</p>
+      <p class="text-xs text-gray-500">Grouped by Payment.centre</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4">
+      <p class="text-xs font-medium text-gray-500 uppercase">Admission Centres Active</p>
+      <p class="mt-1 text-xl font-bold text-gray-900">{{ report.by_admission_centre|length }}</p>
+      <p class="text-xs text-gray-500">Grouped by Admission.centre</p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="bg-white shadow rounded-lg p-4 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div>
+      <label for="id_date_from" class="block text-xs font-medium text-gray-600 uppercase">Paid From</label>
+      <input id="id_date_from" type="date" name="date_from" value="{{ filters.date_from }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label for="id_date_to" class="block text-xs font-medium text-gray-600 uppercase">Paid To</label>
+      <input id="id_date_to" type="date" name="date_to" value="{{ filters.date_to }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label for="id_collection_centre" class="block text-xs font-medium text-gray-600 uppercase">Collection Centre</label>
+      <select id="id_collection_centre" name="collection_centre" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All collection centres</option>
+        {% for c in centre_options %}
+          <option value="{{ c.pk }}" {% if filters.collection_centre == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.code }} - {{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_admission_centre" class="block text-xs font-medium text-gray-600 uppercase">Admission Centre</label>
+      <select id="id_admission_centre" name="admission_centre" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All admission centres</option>
+        {% for c in centre_options %}
+          <option value="{{ c.pk }}" {% if filters.admission_centre == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.code }} - {{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_mode" class="block text-xs font-medium text-gray-600 uppercase">Payment Mode</label>
+      <select id="id_mode" name="mode" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All modes</option>
+        {% for val, label in mode_options %}
+          <option value="{{ val }}" {% if filters.mode == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_status" class="block text-xs font-medium text-gray-600 uppercase">Status</label>
+      <select id="id_status" name="status" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All statuses</option>
+        {% for val, label in status_options %}
+          <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_q" class="block text-xs font-medium text-gray-600 uppercase">Search Receipt / Student</label>
+      <input id="id_q" type="text" name="q" value="{{ filters.q }}" placeholder="Receipt #, student, ref..." class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+    </div>
+    <div class="flex items-end justify-end gap-2">
+      <a href="{% url 'reports:collection_report' %}" class="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Reset</a>
+      <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Apply Filters</button>
+    </div>
+  </form>
+
+  <!-- Dual Centre Breakdowns + Daily Summary -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <section class="bg-white shadow rounded-lg overflow-hidden" aria-labelledby="by-coll-centre-heading">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 id="by-coll-centre-heading" class="text-base font-medium text-gray-900">By Collection Centre (Physical Receipt Location)</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Centre</th>
+              <th scope="col" class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Posted (#)</th>
+              <th scope="col" class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Posted (INR)</th>
+              <th scope="col" class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Reversed (INR)</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white">
+            {% for row in report.by_collection_centre %}
+            <tr>
+              <td class="px-4 py-2.5 font-medium text-gray-900">{{ row.code }} &mdash; {{ row.label }}</td>
+              <td class="px-4 py-2.5 text-right text-gray-700">{{ row.posted_count }}</td>
+              <td class="px-4 py-2.5 text-right font-semibold text-emerald-700">{{ row.posted_amount|floatformat:2 }}</td>
+              <td class="px-4 py-2.5 text-right text-red-700">{{ row.reversed_amount|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-4 py-4 text-center text-gray-500">No collections in range.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bg-white shadow rounded-lg overflow-hidden" aria-labelledby="by-adm-centre-heading">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 id="by-adm-centre-heading" class="text-base font-medium text-gray-900">By Admission Centre (Student Home Centre)</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Centre</th>
+              <th scope="col" class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Posted (#)</th>
+              <th scope="col" class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Posted (INR)</th>
+              <th scope="col" class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Reversed (INR)</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white">
+            {% for row in report.by_admission_centre %}
+            <tr>
+              <td class="px-4 py-2.5 font-medium text-gray-900">{{ row.code }} &mdash; {{ row.label }}</td>
+              <td class="px-4 py-2.5 text-right text-gray-700">{{ row.posted_count }}</td>
+              <td class="px-4 py-2.5 text-right font-semibold text-emerald-700">{{ row.posted_amount|floatformat:2 }}</td>
+              <td class="px-4 py-2.5 text-right text-red-700">{{ row.reversed_amount|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-4 py-4 text-center text-gray-500">No collections in range.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Receipt Register Table -->
+  <section class="bg-white shadow rounded-lg overflow-hidden" aria-labelledby="register-heading">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 id="register-heading" class="text-base font-medium text-gray-900">Receipt Register ({{ total_count }})</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt Number</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paid On</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Admission Ctr</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Collection Ctr</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode / Ref</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount (INR)</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Receipt</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+          {% for payment in payments %}
+          <tr>
+            <td class="px-4 py-3 font-mono font-medium">
+              <a href="{% url 'payments:payment_detail' payment.pk %}" class="text-indigo-600 hover:text-indigo-900">{{ payment.receipt.number }}</a>
+            </td>
+            <td class="px-4 py-3 text-gray-700">{{ payment.paid_on|date:"d M Y" }}</td>
+            <td class="px-4 py-3">
+              <a href="{% url 'reports:student_ledger' payment.admission_id %}" class="font-medium text-gray-900 hover:text-indigo-600">{{ payment.admission.student.get_full_name }}</a>
+              <span class="block text-xs font-mono text-gray-500">{{ payment.admission.student.student_id|default:"No ID" }}</span>
+            </td>
+            <td class="px-4 py-3 text-gray-600">{{ payment.admission.centre.code }}</td>
+            <td class="px-4 py-3 text-gray-600">{{ payment.centre.code }}</td>
+            <td class="px-4 py-3 text-gray-600">{{ payment.get_mode_display }}{% if payment.reference %} &middot; {{ payment.reference }}{% endif %}</td>
+            <td class="px-4 py-3 text-right font-semibold text-gray-900">{{ payment.amount|floatformat:2 }}</td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-0.5 text-xs rounded-full {% if payment.status == 'POSTED' %}bg-emerald-100 text-emerald-800{% else %}bg-red-100 text-red-800{% endif %}">
+                {{ payment.get_status_display }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-right space-x-2">
+              <a href="{% url 'payments:receipt_print' payment.pk %}" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium">Print</a>
+              <a href="{% url 'payments:receipt_pdf' payment.pk %}" class="text-slate-700 hover:text-slate-900 text-xs font-medium">PDF</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="px-4 py-8 text-center text-gray-500">No receipts match the selected filters.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+

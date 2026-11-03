@@ -9,153 +9,156 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">GIIMS Administrative Dashboard</h1>
-            <p class="mt-1 text-sm text-slate-500">Student admissions, fee schedules, and centre-scoped collection overviews.</p>
+            <p class="mt-1 text-sm text-slate-500">Live centre-scoped admissions, fee schedules, collections, and approval queues.</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <span class="inline-flex items-center rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
-                Academic Year 2026–2027
+                As of {{ today|date:"d M Y" }}
             </span>
-            <span class="inline-flex items-center rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">
-                Centre: Kochi (KC-01)
-            </span>
+            {% if request.user.primary_centre %}
+                <span class="inline-flex items-center rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-500/10">
+                    Centre: {{ request.user.primary_centre.name }} ({{ request.user.primary_centre.code }})
+                </span>
+            {% elif request.user.has_all_centres_access %}
+                <span class="inline-flex items-center rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-500/10">
+                    Scope: All Centres ({{ accessible_centres|length }})
+                </span>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Presentation-Only Demo Notice (Requirement 6) -->
-    <div class="rounded-xl border border-amber-200 bg-amber-50/80 p-4 shadow-xs">
-        <div class="flex items-start gap-3">
-            <svg class="h-5 w-5 text-amber-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-            </svg>
-            <div class="text-xs text-amber-800">
-                <p class="font-semibold text-amber-900">Frontend Presentation Foundation — Demo Values Notice</p>
-                <p class="mt-0.5">The metrics, ledgers, and statistics shown below are <strong>presentation-only demo mockups</strong> used for UI/UX verification. Real admissions, financial ledgers, and transactions will be populated once domain services are implemented.</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- 4 Key Metric Cards (Task 6) -->
+    <!-- 4 Key Metric Cards -->
     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        
-        <!-- Total Students -->
+
+        <!-- Total Admissions -->
         <div class="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:border-slate-300 transition-all">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Students</span>
-                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">Demo</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Admissions</span>
+                <a href="{% url 'admissions:admission_list' %}" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-200">View</a>
             </div>
-            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">1,248</p>
+            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ total_admissions }}</p>
             <div class="mt-2 flex items-center text-xs text-emerald-600 font-medium">
-                <svg class="h-4 w-4 mr-1 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
-                </svg>
-                <span>+42 enrolled this term</span>
+                <span>{{ enrolled_admissions }} enrolled</span>
+                <span class="mx-1.5 text-slate-300">&bull;</span>
+                <span class="text-amber-600">{{ enquired_admissions }} enquired</span>
             </div>
-            <p class="mt-1 text-[11px] text-slate-400">Across 4 operational centres</p>
+            <p class="mt-1 text-[11px] text-slate-400">Across {{ accessible_centres|length }} accessible centre{{ accessible_centres|length|pluralize }}</p>
         </div>
 
-        <!-- Today's Collections -->
+        <!-- Month Collections -->
         <div class="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:border-slate-300 transition-all">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Today's Collections</span>
-                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">Demo</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">This Month's Collections</span>
+                {% if can_view_finance %}
+                    <a href="{% url 'reports:collection_report' %}" class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-200">Report</a>
+                {% endif %}
             </div>
-            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">&#8377; 84,500</p>
+            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">&#8377; {{ month_collection|floatformat:2 }}</p>
             <div class="mt-2 flex items-center text-xs text-slate-600">
-                <span class="font-medium text-slate-700">14 transactions</span>
+                <span class="font-medium text-slate-700">{{ month_receipt_count }} receipt{{ month_receipt_count|pluralize }}</span>
                 <span class="mx-1.5 text-slate-300">&bull;</span>
-                <span class="text-slate-500">100% receipted</span>
+                <span class="text-slate-500">Since {{ month_start|date:"d M Y" }}</span>
             </div>
-            <p class="mt-1 text-[11px] text-slate-400">Bank & online collections</p>
+            <p class="mt-1 text-[11px] text-slate-400">Posted collections in scope</p>
         </div>
 
-        <!-- Outstanding Fees -->
+        <!-- Outstanding & Overdue Fees -->
         <div class="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:border-slate-300 transition-all">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Outstanding Fees</span>
-                <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-800">Demo</span>
+                {% if can_view_finance %}
+                    <a href="{% url 'reports:outstanding_report' %}" class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-800 hover:bg-rose-200">Details</a>
+                {% endif %}
             </div>
-            <p class="mt-3 text-3xl font-bold tracking-tight text-rose-600">&#8377; 14,20,000</p>
+            <p class="mt-3 text-3xl font-bold tracking-tight text-rose-600">&#8377; {{ total_outstanding|floatformat:2 }}</p>
             <div class="mt-2 flex items-center text-xs text-rose-600 font-medium">
-                <svg class="h-4 w-4 mr-1 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                <span>68 overdue installments</span>
+                <span>Overdue: &#8377; {{ overdue_outstanding|floatformat:2 }}</span>
             </div>
-            <p class="mt-1 text-[11px] text-slate-400">Total agreed fee variance</p>
+            <p class="mt-1 text-[11px] text-slate-400">Available advance credit: &#8377; {{ available_credit|floatformat:2 }}</p>
         </div>
 
-        <!-- Active Courses & Batches -->
+        <!-- Pending Finance Approvals -->
         <div class="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-xs hover:border-slate-300 transition-all">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Courses & Batches</span>
-                <span class="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-800">Demo</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending Requests</span>
+                {% if can_view_finance %}
+                    <a href="{% url 'reports:adjustments_report' %}" class="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-800 hover:bg-indigo-200">Queue</a>
+                {% endif %}
             </div>
-            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">12 / 28</p>
+            <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+                {{ pending_due_date_count }} / {{ pending_refund_count }} / {{ pending_reversal_count }}
+            </p>
             <div class="mt-2 flex items-center text-xs text-indigo-600 font-medium">
-                <span>12 Active Courses</span>
+                <span>{{ pending_due_date_count }} Due-Date</span>
                 <span class="mx-1.5 text-slate-300">&bull;</span>
-                <span>28 Batches</span>
+                <span>{{ pending_refund_count }} Refunds</span>
+                <span class="mx-1.5 text-slate-300">&bull;</span>
+                <span>{{ pending_reversal_count }} Reversals</span>
             </div>
-            <p class="mt-1 text-[11px] text-slate-400">Diploma & Degree programs</p>
+            <p class="mt-1 text-[11px] text-slate-400">Reassignments pending: {{ pending_reassignment_count }}</p>
         </div>
 
     </div>
 
-    <!-- Quick Actions Bar (Task 7) -->
+    <!-- Quick Actions Bar -->
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
         <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Quick Actions</h2>
         <div class="flex flex-wrap items-center gap-3">
-            <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+            {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'MANAGEMENT' or request.user.role == 'ADMISSIONS' %}
+            <a href="{% url 'admissions:enquiry_create' %}" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 transition-colors">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
                 New Admission
-            </button>
+            </a>
+            {% endif %}
 
-            <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-500 transition-colors">
+            {% if can_view_finance %}
+            <a href="{% url 'payments:payment_create' %}" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-500 transition-colors">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6H2.25m0 0v10.5m0-10.5h19.5m0 0v10.5m0 0h-7.5m7.5 0v.75c0 .754-.726 1.294-1.453 1.096A60.07 60.07 0 0 1 12 21.75" />
                 </svg>
                 Record Payment
-            </button>
+            </a>
+            {% endif %}
 
-            <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors">
+            <a href="{% url 'reports:ledger_index' %}" class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors">
                 <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
                 Student Ledger Lookup
-            </button>
+            </a>
 
-            <button type="button" class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors">
+            <a href="{% url 'reports:report_hub' %}" class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors">
                 <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
-                Export Collection Summary
-            </button>
+                Reports &amp; Exports
+            </a>
         </div>
     </div>
 
-    <!-- Interactive Client & Server Components: Alpine.js + HTMX (Task 8) -->
+    <!-- Interactive Client & Server Components: Alpine.js + HTMX -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Left 2 Cols: Interactive Tabbed Fee & Admission Feed (Alpine.js Demo) -->
+        <!-- Left 2 Cols: Interactive Tabbed Fee & Admission Feed -->
         <div class="lg:col-span-2 rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden"
              x-data="{ activeTab: 'collections' }">
-            
+
             <div class="border-b border-slate-200 px-5 pt-4 pb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                     <h2 class="text-sm font-bold text-slate-900">Centre Activity Feed</h2>
-                    <p class="text-xs text-slate-400">Interactive reactive filtering via Alpine.js</p>
+                    <p class="text-xs text-slate-400">Recent posted receipts and admissions in your centre scope</p>
                 </div>
 
                 <!-- Alpine.js Tabs -->
                 <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium">
-                    <button @click="activeTab = 'collections'" 
+                    <button @click="activeTab = 'collections'"
                             :class="activeTab === 'collections' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
                             class="px-3 py-1.5 rounded-md transition-all">
                         Recent Collections
                     </button>
-                    <button @click="activeTab = 'admissions'" 
+                    <button @click="activeTab = 'admissions'"
                             :class="activeTab === 'admissions' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
                             class="px-3 py-1.5 rounded-md transition-all">
                         Recent Admissions
@@ -165,107 +168,110 @@
 
             <!-- Tab 1: Recent Collections Content -->
             <div x-show="activeTab === 'collections'" class="divide-y divide-slate-100">
-                <div class="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                    <div class="flex items-center gap-3">
-                        <div class="h-10 w-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
-                            RCP
+                {% for payment in recent_payments %}
+                    <div class="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
+                                RCP
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-800">
+                                    {% if can_view_finance %}
+                                        <a href="{% url 'payments:payment_detail' payment.pk %}" class="text-indigo-600 hover:text-indigo-900">
+                                            {{ payment.receipt.number|default:"Unreceipted" }}
+                                        </a>
+                                    {% else %}
+                                        {{ payment.receipt.number|default:"Unreceipted" }}
+                                    {% endif %}
+                                </p>
+                                <p class="text-xs text-slate-500">
+                                    Student: {{ payment.admission.student.get_full_name }} &bull;
+                                    {{ payment.paid_on|date:"d M Y" }}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-800">GIIMS-RCP-2026-0041</p>
-                            <p class="text-xs text-slate-500">Student: Rahul Nair &bull; Course: BBA Aviation &bull; Installment 2</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-bold text-emerald-700">&#8377; 15,000</p>
-                        <span class="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">Bank Transfer</span>
-                    </div>
-                </div>
-
-                <div class="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                    <div class="flex items-center gap-3">
-                        <div class="h-10 w-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
-                            RCP
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-800">GIIMS-RCP-2026-0040</p>
-                            <p class="text-xs text-slate-500">Student: Ananya Menon &bull; Course: Logistics & SCM &bull; Installment 1</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-bold text-emerald-700">&#8377; 25,000</p>
-                        <span class="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700">UPI / Online</span>
-                    </div>
-                </div>
-
-                <div class="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                    <div class="flex items-center gap-3">
-                        <div class="h-10 w-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
-                            RCP
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-800">GIIMS-RCP-2026-0039</p>
-                            <p class="text-xs text-slate-500">Student: Mohammed Fayis &bull; Course: MBA Finance &bull; Full Payment</p>
+                        <div class="text-right">
+                            <p class="text-sm font-bold {% if payment.status == 'POSTED' %}text-emerald-700{% else %}text-red-700{% endif %}">
+                                &#8377; {{ payment.amount|floatformat:2 }}
+                            </p>
+                            <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+                                {{ payment.get_mode_display }} &middot; {{ payment.centre.code }}
+                            </span>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <p class="text-sm font-bold text-emerald-700">&#8377; 44,500</p>
-                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">Cheque Cleared</span>
+                {% empty %}
+                    <div class="p-6 text-center text-sm text-slate-500">
+                        No payments have been recorded in your centre scope yet.
                     </div>
-                </div>
+                {% endfor %}
             </div>
 
             <!-- Tab 2: Recent Admissions Content -->
             <div x-show="activeTab === 'admissions'" style="display: none;" class="divide-y divide-slate-100">
-                <div class="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                    <div class="flex items-center gap-3">
-                        <div class="h-10 w-10 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
-                            ADM
+                {% for admission in recent_admissions %}
+                    <div class="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                                ADM
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-800">
+                                    <a href="{% url 'admissions:admission_detail' admission.pk %}" class="text-indigo-600 hover:text-indigo-900">
+                                        {{ admission.student.student_id|default:"ENQUIRY" }} &bull; {{ admission.student.get_full_name }}
+                                    </a>
+                                </p>
+                                <p class="text-xs text-slate-500">
+                                    Course: {{ admission.course.name }} &bull; Batch: {{ admission.batch.code }} &bull; {{ admission.centre.code }}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-800">ADM-2026-KC-0189 &bull; Sandra Thomas</p>
-                            <p class="text-xs text-slate-500">Course: MBA Hospital Management &bull; Batch: 2026-A</p>
+                        <div class="flex items-center gap-2">
+                            <a href="{% url 'reports:student_ledger' admission.pk %}" class="text-xs font-medium text-indigo-600 hover:text-indigo-900">Ledger</a>
+                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {% if admission.status == 'ENROLLED' %}bg-emerald-50 text-emerald-700{% else %}bg-amber-50 text-amber-700{% endif %}">
+                                {{ admission.get_status_display }}
+                            </span>
                         </div>
                     </div>
-                    <span class="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">Approved</span>
-                </div>
-
-                <div class="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                    <div class="flex items-center gap-3">
-                        <div class="h-10 w-10 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
-                            ADM
-                        </div>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-800">ADM-2026-KC-0188 &bull; Vishnu Prasad</p>
-                            <p class="text-xs text-slate-500">Course: BBA Aviation &bull; Batch: 2026-B</p>
-                        </div>
+                {% empty %}
+                    <div class="p-6 text-center text-sm text-slate-500">
+                        No admissions have been recorded in your centre scope yet.
                     </div>
-                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">Fee Plan Pending</span>
-                </div>
+                {% endfor %}
             </div>
 
-            <div class="bg-slate-50 p-3 text-center border-t border-slate-100">
-                <span class="text-xs text-slate-400">Showing demo records for layout verification</span>
+            <div class="bg-slate-50 p-3 text-center border-t border-slate-100 flex items-center justify-between px-5 text-xs text-slate-500">
+                <span>Showing latest records in your authorized centre scope</span>
+                <a href="{% url 'reports:admission_register' %}" class="font-medium text-indigo-600 hover:text-indigo-900">Open full register &rarr;</a>
             </div>
         </div>
 
-        <!-- Right 1 Col: HTMX Server-Driven Component & Center Scoping Card -->
+        <!-- Right 1 Col: HTMX Live Queue & Financial Integrity -->
         <div class="space-y-6">
-            
-            <!-- HTMX Demonstration Card -->
+
+            <!-- HTMX Live Workflow Queue Card -->
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
                 <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-sm font-bold text-slate-900">HTMX Live Status</h2>
-                    <span class="rounded-md bg-purple-50 text-purple-700 px-2 py-0.5 text-[10px] font-semibold">HTMX Active</span>
+                    <h2 class="text-sm font-bold text-slate-900">Approval &amp; Workflow Queue</h2>
+                    <span class="rounded-md bg-purple-50 text-purple-700 px-2 py-0.5 text-[10px] font-semibold">HTMX Live</span>
                 </div>
-                <p class="text-xs text-slate-500 mb-4">Demonstrating server-driven partial updates without a full page reload.</p>
-                
-                <div id="htmx-demo-target" class="rounded-lg bg-slate-50 p-4 border border-slate-200 text-xs">
-                    <div class="flex items-center justify-between text-slate-600 mb-2">
-                        <span class="font-medium">Centre Queue Status:</span>
-                        <span class="text-emerald-700 font-semibold">Normal</span>
+                <p class="text-xs text-slate-500 mb-4">Pending finance approvals and requests across your accessible centres.</p>
+
+                <div id="htmx-demo-target" class="rounded-lg bg-slate-50 p-4 border border-slate-200 text-xs space-y-2">
+                    <div class="flex items-center justify-between text-slate-700">
+                        <span>Due-date change requests:</span>
+                        <span class="font-semibold">{{ pending_due_date_count }}</span>
                     </div>
-                    <div class="text-[11px] text-slate-400">
-                        Initial render ready. HTMX library loaded from local npm bundle.
+                    <div class="flex items-center justify-between text-slate-700">
+                        <span>Fee plan reassignments:</span>
+                        <span class="font-semibold">{{ pending_reassignment_count }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-slate-700">
+                        <span>Pending refunds:</span>
+                        <span class="font-semibold">{{ pending_refund_count }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-slate-700">
+                        <span>Pending payment reversals:</span>
+                        <span class="font-semibold">{{ pending_reversal_count }}</span>
                     </div>
                 </div>
 
@@ -278,22 +284,22 @@
                         <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                         </svg>
-                        Refresh via HTMX Partial
+                        Refresh Queue via HTMX
                     </button>
                 </div>
             </div>
 
             <!-- Centre Scoping & Auditing Guidelines Card -->
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-                <h2 class="text-sm font-bold text-slate-900 mb-2">Financial Integrity & Rules</h2>
+                <h2 class="text-sm font-bold text-slate-900 mb-2">Financial Integrity &amp; Rules</h2>
                 <ul class="space-y-2 text-xs text-slate-600">
                     <li class="flex items-start gap-2">
                         <span class="text-indigo-600 font-bold">&#10003;</span>
-                        <span>Server-side authorization and centre-level scoping on all queries.</span>
+                        <span>Server-side authorization and centre-level scoping on all queries and exports.</span>
                     </li>
                     <li class="flex items-start gap-2">
                         <span class="text-indigo-600 font-bold">&#10003;</span>
-                        <span>Receipt numbers are strictly immutable and concurrency-locked.</span>
+                        <span>Receipt numbers are strictly immutable and concurrency-locked; reprints are audited.</span>
                     </li>
                     <li class="flex items-start gap-2">
                         <span class="text-indigo-600 font-bold">&#10003;</span>

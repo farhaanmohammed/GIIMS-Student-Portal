@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Reports &amp; Ledgers - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold text-gray-900">Reports, Ledgers &amp; Audit Trail</h1>
+    <p class="mt-1 text-sm text-gray-500">
+      All reports and CSV/PDF exports are scoped to your accessible centres on the server.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <a href="{% url 'reports:ledger_index' %}" class="block bg-white shadow rounded-lg p-6 border border-gray-200 hover:border-indigo-500 transition-colors">
+      <h2 class="text-base font-semibold text-gray-900">Student Fee Ledger</h2>
+      <p class="mt-2 text-sm text-gray-600">
+        As-of fee summary, six-component installment schedule, payment receipts, allocations, advance credit, refunds, reversals, and due-date revisions for any admission.
+      </p>
+      <span class="mt-4 inline-block text-sm font-medium text-indigo-600">Open student ledgers &rarr;</span>
+    </a>
+
+    <a href="{% url 'reports:admission_register' %}" class="block bg-white shadow rounded-lg p-6 border border-gray-200 hover:border-indigo-500 transition-colors">
+      <h2 class="text-base font-semibold text-gray-900">Student &amp; Admission Register</h2>
+      <p class="mt-2 text-sm text-gray-600">
+        Filter admissions by centre, academic year, course, batch, status, and enquiry date range.
+      </p>
+      <span class="mt-4 inline-block text-sm font-medium text-indigo-600">Open admission register &rarr;</span>
+    </a>
+
+    {% if can_access_financial_reports %}
+    <a href="{% url 'reports:outstanding_report' %}" class="block bg-white shadow rounded-lg p-6 border border-gray-200 hover:border-indigo-500 transition-colors">
+      <h2 class="text-base font-semibold text-gray-900">Outstanding Balance Report</h2>
+      <p class="mt-2 text-sm text-gray-600">
+        Student-wise and aggregate billed, paid, total outstanding, overdue, not-yet-due, undated stage charges, and available credit as of any selected date.
+      </p>
+      <span class="mt-4 inline-block text-sm font-medium text-indigo-600">Open outstanding report &rarr;</span>
+    </a>
+
+    <a href="{% url 'reports:overdue_report' %}" class="block bg-white shadow rounded-lg p-6 border border-gray-200 hover:border-indigo-500 transition-colors">
+      <h2 class="text-base font-semibold text-gray-900">Overdue Installments Report</h2>
+      <p class="mt-2 text-sm text-gray-600">
+        Every dated course installment with an unpaid balance past its effective due date as of the selected reporting date.
+      </p>
+      <span class="mt-4 inline-block text-sm font-medium text-indigo-600">Open overdue report &rarr;</span>
+    </a>
+
+    <a href="{% url 'reports:collection_report' %}" class="block bg-white shadow rounded-lg p-6 border border-gray-200 hover:border-indigo-500 transition-colors">
+      <h2 class="text-base font-semibold text-gray-900">Collection &amp; Receipt Register</h2>
+      <p class="mt-2 text-sm text-gray-600">
+        Period-wise collections separated by collection centre and admission centre, daily totals, payment modes, and traceable receipt register.
+      </p>
+      <span class="mt-4 inline-block text-sm font-medium text-indigo-600">Open collection report &rarr;</span>
+    </a>
+
+    <a href="{% url 'reports:adjustments_report' %}" class="block bg-white shadow rounded-lg p-6 border border-gray-200 hover:border-indigo-500 transition-colors">
+      <h2 class="text-base font-semibold text-gray-900">Reversals, Refunds &amp; Reassignments</h2>
+      <p class="mt-2 text-sm text-gray-600">
+        Complete register of payment reversals, advance-credit refunds, and controlled fee-plan reassignments with reasons and approvers.
+      </p>
+      <span class="mt-4 inline-block text-sm font-medium text-indigo-600">Open adjustments report &rarr;</span>
+    </a>
+
+    <a href="{% url 'reports:audit_trail' %}" class="block bg-white shadow rounded-lg p-6 border border-gray-200 hover:border-indigo-500 transition-colors">
+      <h2 class="text-base font-semibold text-gray-900">Financial &amp; Due-Date Audit Trail</h2>
+      <p class="mt-2 text-sm text-gray-600">
+        Append-only log of all financial events (payments, receipts, reprints, credit, refunds, reversals, reassignments) and due-date revisions.
+      </p>
+      <span class="mt-4 inline-block text-sm font-medium text-indigo-600">Open audit trail &rarr;</span>
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+

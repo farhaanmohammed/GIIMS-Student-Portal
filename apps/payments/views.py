@@ -36,6 +36,7 @@ from apps.payments.services import (
     apply_advance_credit,
     decide_payment_reversal,
     decide_refund,
+    log_receipt_reprint,
     record_payment,
     request_payment_reversal,
     request_refund,
@@ -517,3 +518,165 @@ class ReversalDecideView(LoginRequiredMixin, RoleRequiredViewMixin, PostOnlyMixi
             outcome = "approved" if form.cleaned_data["decision"] == "approve" else "rejected"
             messages.success(request, f"Payment reversal {outcome}.")
         return redirect("payments:reversal_list")
+
+
+def _receipt_pdf_bytes(payment: Payment) -> bytes:
+    """Build a server-generated PDF receipt for ``payment``."""
+    from apps.core.exporters import PdfTableSection, build_pdf_document
+
+    receipt = payment.receipt
+    admission = payment.admission
+    student = admission.student
+    summary = admission_fee_summary(admission)
+    allocations = list(installment_allocations_for_payment(payment))
+    credit_lots = list(payment.credit_lots.order_by("created_at", "pk"))
+    reversal = (
+        PaymentReversal.objects.filter(payment=payment)
+        .select_related("requested_by", "decided_by")
+        .first()
+    )
+
+    metadata: list[tuple[str, Any]] = [
+        ("Receipt Number", receipt.number),
+        ("Receipt Status", receipt.get_status_display()),
+        ("Student Name", student.get_full_name()),
+        ("Student ID", student.student_id or "Not enrolled"),
+        ("Course / Batch", f"{admission.course.code} / {admission.batch.code}"),
+        ("Academic Year", admission.academic_year.label),
+        ("Collection Centre", f"{payment.centre.name} ({payment.centre.code})"),
+        ("Admission Centre", f"{admission.centre.name} ({admission.centre.code})"),
+        ("Payment Date", payment.paid_on),
+        ("Payment Mode", payment.get_mode_display()),
+        ("Reference", payment.reference or "-"),
+        ("Amount Received", f"{payment.amount:.2f} {payment.currency}"),
+        ("Recorded By", str(payment.recorded_by)),
+        ("Issued At", receipt.issued_at),
+    ]
+    if reversal and reversal.status == PaymentReversal.Status.APPROVED:
+        metadata.extend(
+            [
+                ("Reversed By", str(reversal.decided_by)),
+                ("Reversal Reason", reversal.reason),
+            ]
+        )
+
+    alloc_rows = [
+        (
+            f"#{row.installment.sequence} {row.installment.description}",
+            row.installment.get_category_display(),
+            row.amount,
+            row.get_source_type_display(),
+            row.get_status_display(),
+        )
+        for row in allocations
+    ]
+    sections = [
+        PdfTableSection(
+            title="Installment Allocations from this Payment",
+            headers=("Installment", "Stage/Category", "Allocated (INR)", "Source", "Status"),
+            rows=alloc_rows,
+            col_widths=(36, 18, 16, 15, 15),
+            empty_message="No direct installment allocations; retained as advance credit.",
+        ),
+        PdfTableSection(
+            title="Admission Balance Summary (As of Today)",
+            headers=(
+                "Total Billed",
+                "Total Paid",
+                "Total Outstanding",
+                "Overdue",
+                "Available Credit",
+            ),
+            rows=[
+                (
+                    summary.total_billed,
+                    summary.total_paid,
+                    summary.total_outstanding,
+                    summary.overdue_outstanding,
+                    summary.available_credit,
+                )
+            ],
+            col_widths=(20, 20, 20, 20, 20),
+        ),
+    ]
+    if credit_lots:
+        sections.append(
+            PdfTableSection(
+                title="Advance Credit Lots Created by this Payment",
+                headers=("Lot #", "Source", "Original (INR)", "Remaining (INR)", "Status"),
+                rows=[
+                    (
+                        f"#{lot.pk}",
+                        lot.get_source_type_display(),
+                        lot.original_amount,
+                        lot.remaining_amount,
+                        lot.get_status_display(),
+                    )
+                    for lot in credit_lots
+                ],
+                col_widths=(15, 25, 20, 20, 20),
+            )
+        )
+
+    status_badge = "REVERSED / VOID" if receipt.status == "REVERSED" else "OFFICIAL RECEIPT"
+    return build_pdf_document(
+        title=f"Fee Payment Receipt - {receipt.number}",
+        subtitle="Global Institute of Information & Management Studies (GIIMS)",
+        status_badge=status_badge,
+        metadata=metadata,
+        sections=sections,
+        footer_note=(
+            f"Receipt {receipt.number} | Collection Centre: {payment.centre.code} | "
+            f"Admission Centre: {admission.centre.code}"
+        ),
+    )
+
+
+class ReceiptPrintView(LoginRequiredMixin, RoleRequiredViewMixin, DetailView):
+    """Printable HTML receipt view that records a RECEIPT_REPRINTED audit event."""
+
+    model = Payment
+    template_name = "payments/receipt_print.html"
+    context_object_name = "payment"
+    allowed_roles = PAYMENT_ROLES
+
+    def get_queryset(self) -> QuerySet[Payment]:
+        return payments_for_user(self.request.user)
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        self.object = self.get_object()
+        log_receipt_reprint(self.object, request.user, format_name="HTML")
+        context = self.get_context_data(object=self.object)
+        return self.render_to_response(context)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        payment = self.object
+        context.update(
+            {
+                "receipt": payment.receipt,
+                "allocations": installment_allocations_for_payment(payment),
+                "credit_lots": payment.credit_lots.order_by("created_at", "pk"),
+                "reversal": PaymentReversal.objects.filter(payment=payment)
+                .select_related("requested_by", "decided_by")
+                .first(),
+                "summary": admission_fee_summary(payment.admission),
+                "credit_available": available_credit(payment.admission),
+            }
+        )
+        return context
+
+
+class ReceiptPdfView(LoginRequiredMixin, RoleRequiredViewMixin, View):
+    """Server-generated PDF download for an issued receipt, audited via RECEIPT_REPRINTED."""
+
+    allowed_roles = PAYMENT_ROLES
+
+    def get(self, request: HttpRequest, pk: int) -> HttpResponse:
+        from apps.core.exporters import build_pdf_response
+
+        payment = get_object_or_404(payments_for_user(request.user), pk=pk)
+        log_receipt_reprint(payment, request.user, format_name="PDF")
+        pdf_bytes = _receipt_pdf_bytes(payment)
+        filename = f"receipt_{payment.receipt.number.replace('/', '_')}.pdf"
+        return build_pdf_response(filename, pdf_bytes)
