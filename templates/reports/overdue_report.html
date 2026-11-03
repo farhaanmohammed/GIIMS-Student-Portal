@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Overdue Installments Report - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <p class="text-sm text-gray-500">
+        <a href="{% url 'reports:report_hub' %}" class="text-indigo-600 hover:text-indigo-900">Reports</a> / Overdue Installments Report
+      </p>
+      <h1 class="mt-1 text-2xl font-semibold text-gray-900">Overdue Installments Report</h1>
+      <p class="mt-1 text-sm text-gray-500">
+        As of {{ as_of|date:"d M Y" }} &middot; Total Overdue Balance: <strong class="text-red-700">{{ total_overdue|floatformat:2 }} INR</strong> across {{ total_count }} installment(s).
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'reports:overdue_report_csv' %}{% if querystring %}?{{ querystring }}{% endif %}" class="rounded-md border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Export CSV</a>
+      <a href="{% url 'reports:overdue_report_pdf' %}{% if querystring %}?{{ querystring }}{% endif %}" class="rounded-md bg-slate-800 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-700">Download PDF</a>
+    </div>
+  </div>
+
+  <form method="get" class="bg-white shadow rounded-lg p-4 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div>
+      <label for="id_as_of" class="block text-xs font-medium text-gray-600 uppercase">As-Of Date</label>
+      <input id="id_as_of" type="date" name="as_of" value="{{ filters.as_of }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label for="id_centre" class="block text-xs font-medium text-gray-600 uppercase">Centre</label>
+      <select id="id_centre" name="centre" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All accessible centres</option>
+        {% for c in centre_options %}
+          <option value="{{ c.pk }}" {% if filters.centre == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.code }} - {{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_course" class="block text-xs font-medium text-gray-600 uppercase">Course</label>
+      <select id="id_course" name="course" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All courses</option>
+        {% for cr in course_options %}
+          <option value="{{ cr.pk }}" {% if filters.course == cr.pk|stringformat:"s" %}selected{% endif %}>{{ cr.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_q" class="block text-xs font-medium text-gray-600 uppercase">Student Search</label>
+      <input id="id_q" type="text" name="q" value="{{ filters.q }}" placeholder="Name or ID..." class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+    </div>
+    <div class="flex items-end justify-end gap-2">
+      <a href="{% url 'reports:overdue_report' %}" class="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Reset</a>
+      <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Apply</button>
+    </div>
+  </form>
+
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Centre / Batch</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Installment</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Original Due</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Effective Due</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Days Overdue</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Billed (INR)</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid (INR)</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Overdue Balance (INR)</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+          {% for r in rows %}
+          <tr>
+            <td class="px-4 py-3">
+              <a href="{% url 'reports:student_ledger' r.admission.pk %}?as_of={{ filters.as_of }}" class="font-medium text-indigo-600 hover:text-indigo-900">
+                {{ r.admission.student.get_full_name }}
+              </a>
+              <span class="block text-xs font-mono text-gray-500">{{ r.admission.student.student_id|default:"No ID" }}</span>
+            </td>
+            <td class="px-4 py-3 text-gray-600">{{ r.admission.centre.code }} &middot; {{ r.admission.course.code }}/{{ r.admission.batch.code }}</td>
+            <td class="px-4 py-3 text-gray-900">#{{ r.installment.sequence }} {{ r.installment.description }}</td>
+            <td class="px-4 py-3 text-gray-500">{{ r.original_due_date|date:"d M Y" }}</td>
+            <td class="px-4 py-3 font-medium text-gray-900">{{ r.effective_due_date|date:"d M Y" }}</td>
+            <td class="px-4 py-3 text-right font-medium text-red-700">{{ r.days_overdue }}d</td>
+            <td class="px-4 py-3 text-right text-gray-900">{{ r.billed|floatformat:2 }}</td>
+            <td class="px-4 py-3 text-right text-emerald-700">{{ r.paid|floatformat:2 }}</td>
+            <td class="px-4 py-3 text-right font-bold text-red-700">{{ r.overdue_amount|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="px-4 py-8 text-center text-gray-500">No overdue course installments as of {{ as_of|date:"d M Y" }}.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

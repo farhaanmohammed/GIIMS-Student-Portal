@@ -646,6 +646,7 @@ class FinancialAuditEvent(models.Model):
     class Event(models.TextChoices):
         PAYMENT_RECORDED = "PAYMENT_RECORDED", "Payment recorded"
         RECEIPT_ISSUED = "RECEIPT_ISSUED", "Receipt issued"
+        RECEIPT_REPRINTED = "RECEIPT_REPRINTED", "Receipt reprinted"
         ALLOCATION_CREATED = "ALLOCATION_CREATED", "Allocation created"
         CREDIT_CREATED = "CREDIT_CREATED", "Advance credit created"
         CREDIT_APPLIED = "CREDIT_APPLIED", "Advance credit applied"

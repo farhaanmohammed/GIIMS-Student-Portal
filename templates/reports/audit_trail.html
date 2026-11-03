@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Financial &amp; Due-Date Audit Trail - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <p class="text-sm text-gray-500">
+        <a href="{% url 'reports:report_hub' %}" class="text-indigo-600 hover:text-indigo-900">Reports</a> / Financial &amp; Due-Date Audit Trail
+      </p>
+      <h1 class="mt-1 text-2xl font-semibold text-gray-900">Append-Only Financial &amp; Due-Date Audit Trail</h1>
+      <p class="mt-1 text-sm text-gray-500">Immutable record of payments, receipts, receipt reprints, credit movements, refunds, reversals, reassignments, and due-date revisions.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'reports:audit_trail_csv' %}{% if querystring %}?{{ querystring }}{% endif %}" class="rounded-md border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Export CSV</a>
+      <a href="{% url 'reports:audit_trail_pdf' %}{% if querystring %}?{{ querystring }}{% endif %}" class="rounded-md bg-slate-800 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-700">Download PDF</a>
+    </div>
+  </div>
+
+  <form method="get" class="bg-white shadow rounded-lg p-4 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+    <div>
+      <label for="id_centre" class="block text-xs font-medium text-gray-600 uppercase">Centre</label>
+      <select id="id_centre" name="centre" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All accessible centres</option>
+        {% for c in centre_options %}
+          <option value="{{ c.pk }}" {% if filters.centre == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.code }} - {{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_event_type" class="block text-xs font-medium text-gray-600 uppercase">Event Type</label>
+      <select id="id_event_type" name="event_type" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All event types</option>
+        {% for val, label in event_type_options %}
+          <option value="{{ val }}" {% if filters.event_type == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_actor" class="block text-xs font-medium text-gray-600 uppercase">Actor</label>
+      <select id="id_actor" name="actor" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <option value="">All users</option>
+        {% for u in actor_options %}
+          <option value="{{ u.pk }}" {% if filters.actor == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="id_date_from" class="block text-xs font-medium text-gray-600 uppercase">From Date</label>
+      <input id="id_date_from" type="date" name="date_from" value="{{ filters.date_from }}" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label for="id_q" class="block text-xs font-medium text-gray-600 uppercase">Search Detail</label>
+      <input id="id_q" type="text" name="q" value="{{ filters.q }}" placeholder="Receipt #, student..." class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+    </div>
+    <div class="flex items-end justify-end gap-2">
+      <a href="{% url 'reports:audit_trail' %}" class="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Reset</a>
+      <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Apply</button>
+    </div>
+  </form>
+
+  <section class="bg-white shadow rounded-lg overflow-hidden mb-6" aria-labelledby="events-heading">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 id="events-heading" class="text-base font-medium text-gray-900">Financial Audit Events ({{ total_count }})</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Timestamp</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Event</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Centre</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actor</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount (INR)</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Detail</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+          {% for ev in events %}
+          <tr>
+            <td class="px-4 py-3 whitespace-nowrap text-gray-600">{{ ev.created_at|date:"d M Y H:i" }}</td>
+            <td class="px-4 py-3 font-medium text-gray-900">{{ ev.get_event_type_display }}</td>
+            <td class="px-4 py-3 text-gray-600">{{ ev.admission.centre.code }}</td>
+            <td class="px-4 py-3">
+              <a href="{% url 'reports:student_ledger' ev.admission_id %}" class="text-indigo-600 hover:text-indigo-900 font-medium">
+                {{ ev.admission.student.get_full_name }}
+              </a>
+            </td>
+            <td class="px-4 py-3 text-gray-700">{{ ev.actor }}</td>
+            <td class="px-4 py-3 text-right font-medium text-gray-900">{% if ev.amount is not None %}{{ ev.amount|floatformat:2 }}{% else %}&mdash;{% endif %}</td>
+            <td class="px-4 py-3 text-gray-600">{{ ev.detail }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="px-4 py-8 text-center text-gray-500">No financial audit events match the selected filters.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+

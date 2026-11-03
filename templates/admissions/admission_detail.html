@@ -2,14 +2,19 @@
 {% block title %}Admission - {{ admission.student.get_full_name }} - GIIMS Student Portal{% endblock %}
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-  <div class="mb-6 flex justify-between items-center">
+  <div class="mb-6 flex flex-wrap justify-between items-center gap-3">
     <div>
       <h1 class="text-2xl font-semibold text-gray-900">Admission Details</h1>
       <p class="text-sm text-gray-500">{{ admission.student.get_full_name }} | {{ admission.student.student_id|default:"No Student ID" }}</p>
     </div>
-    <span class="px-3 py-1 text-sm rounded-full {% if admission.status == 'ENROLLED' %}bg-green-100 text-green-800{% elif admission.status == 'ENQUIRED' %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-800{% endif %}">
-      {{ admission.get_status_display }}
-    </span>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'reports:student_ledger' admission.pk %}" class="px-3 py-1.5 rounded-md border border-indigo-200 bg-indigo-50 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+        View Fee Ledger
+      </a>
+      <span class="px-3 py-1 text-sm rounded-full {% if admission.status == 'ENROLLED' %}bg-green-100 text-green-800{% elif admission.status == 'ENQUIRED' %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+        {{ admission.get_status_display }}
+      </span>
+    </div>
   </div>
   <div class="bg-white shadow rounded-lg p-6 mb-6">
     <h2 class="text-lg font-medium text-gray-900 mb-4">Details</h2>
@@ -46,8 +51,9 @@
   <div class="bg-white shadow rounded-lg p-6 mb-6">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
       <h2 class="text-lg font-medium text-gray-900">Fee Plans</h2>
-      {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'MANAGEMENT' or request.user.role == 'ACCOUNTS' %}
-        <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="{% url 'reports:student_ledger' admission.pk %}" class="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm">Fee ledger</a>
+        {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'MANAGEMENT' or request.user.role == 'ACCOUNTS' %}
           {% if not admission.fee_plans.exists %}
             <a href="{% url 'fees:fee_plan_create' %}?admission={{ admission.pk }}" class="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm">Create fee plan</a>
           {% endif %}
@@ -56,8 +62,8 @@
               <a href="{% url 'payments:payment_create' %}?admission={{ admission.pk }}" class="px-3 py-1.5 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-50 text-sm">Record payment</a>
             {% endif %}
           {% endfor %}
-        </div>
-      {% endif %}
+        {% endif %}
+      </div>
     </div>
     <ul class="space-y-2">
       {% for fee_plan in admission.fee_plans.all %}

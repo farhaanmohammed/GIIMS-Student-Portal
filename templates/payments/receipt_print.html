@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Receipt {{ receipt.number }} - GIIMS Student Portal{% endblock %}
+{% block extra_head %}
+<style>
+  @media print {
+    aside, header, .no-print {
+      display: none !important;
+    }
+    body, main, .lg\:pl-72 {
+      padding-left: 0 !important;
+      background: #ffffff !important;
+    }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3 text-sm">
+      <a href="{% url 'payments:payment_detail' payment.pk %}" class="text-indigo-600 hover:text-indigo-900 font-medium">&larr; Back to payment detail</a>
+      <span class="text-gray-300">|</span>
+      <a href="{% url 'reports:student_ledger' payment.admission_id %}" class="text-indigo-600 hover:text-indigo-900 font-medium">Student fee ledger</a>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <a href="{% url 'payments:receipt_pdf' payment.pk %}" class="rounded-md bg-slate-800 px-3.5 py-2 text-sm font-medium text-white hover:bg-slate-700">
+        Download PDF Receipt
+      </a>
+      <button type="button" onclick="window.print()" class="rounded-md bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        Print Receipt
+      </button>
+    </div>
+  </div>
+
+  <article class="bg-white shadow-sm ring-1 ring-gray-200 rounded-lg overflow-hidden" aria-label="Official Fee Receipt">
+    <div class="bg-slate-900 text-white px-6 py-5 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="text-xs uppercase tracking-widest text-indigo-300 font-semibold">Global Institute of Information &amp; Management Studies</p>
+        <h1 class="mt-1 text-xl font-bold">Official Fee Payment Receipt</h1>
+        <p class="mt-0.5 text-xs text-slate-300">Collection Centre: {{ payment.centre.name }} ({{ payment.centre.code }})</p>
+      </div>
+      <div class="text-right">
+        <p class="text-xs uppercase tracking-wider text-slate-400">Receipt Number</p>
+        <p class="text-lg font-mono font-bold text-white">{{ receipt.number }}</p>
+        <span class="mt-1 inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full {% if receipt.status == 'ACTIVE' %}bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/30{% else %}bg-red-500/20 text-red-200 ring-1 ring-red-400/40{% endif %}">
+          {% if receipt.status == 'REVERSED' %}REVERSED / VOID{% else %}VALID / ACTIVE{% endif %}
+        </span>
+      </div>
+    </div>
+
+    {% if receipt.status == 'REVERSED' %}
+    <div class="bg-red-50 border-b border-red-200 px-6 py-3 text-sm text-red-800">
+      <strong>VOID NOTICE:</strong> This receipt and its underlying payment have been reversed. The receipt number is retained permanently for audit traceability.
+      {% if reversal and reversal.status == 'APPROVED' %}
+        <span class="block mt-1 text-xs text-red-700">
+          Reason: {{ reversal.reason }} (Approved by {{ reversal.decided_by }} on {{ reversal.decided_at|date:"d M Y H:i" }})
+        </span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="p-6 space-y-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 border-b border-gray-200 pb-6 text-sm">
+        <div>
+          <p class="text-xs font-medium uppercase text-gray-500">Student Name</p>
+          <p class="mt-1 font-semibold text-gray-900">{{ payment.admission.student.get_full_name }}</p>
+        </div>
+        <div>
+          <p class="text-xs font-medium uppercase text-gray-500">Student ID</p>
+          <p class="mt-1 font-mono font-semibold text-gray-900">{{ payment.admission.student.student_id|default:"Not enrolled" }}</p>
+        </div>
+        <div>
+          <p class="text-xs font-medium uppercase text-gray-500">Course &amp; Batch</p>
+          <p class="mt-1 font-medium text-gray-900">{{ payment.admission.course.code }} &mdash; {{ payment.admission.batch.code }} ({{ payment.admission.academic_year.label }})</p>
+        </div>
+        <div>
+          <p class="text-xs font-medium uppercase text-gray-500">Admission Centre</p>
+          <p class="mt-1 text-gray-900">{{ payment.admission.centre.name }} ({{ payment.admission.centre.code }})</p>
+        </div>
+        <div>
+          <p class="text-xs font-medium uppercase text-gray-500">Collection Centre</p>
+          <p class="mt-1 text-gray-900">{{ payment.centre.name }} ({{ payment.centre.code }})</p>
+        </div>
+        <div>
+          <p class="text-xs font-medium uppercase text-gray-500">Financial Year</p>
+          <p class="mt-1 text-gray-900">{{ receipt.financial_year }}</p>
+        </div>
+        <div>
+          <p class="text-xs font-medium uppercase text-gray-500">Payment Date</p>
+          <p class="mt-1 font-medium text-gray-900">{{ payment.paid_on|date:"d M Y" }}</p>
+        </div>
+        <div>
+          <p class="text-xs font-medium uppercase text-gray-500">Payment Mode &amp; Ref</p>
+          <p class="mt-1 text-gray-900">{{ payment.get_mode_display }}{% if payment.reference %} ({{ payment.reference }}){% endif %}</p>
+        </div>
+        <div>
+          <p class="text-xs font-medium uppercase text-gray-500">Amount Received</p>
+          <p class="mt-1 text-lg font-bold text-gray-900">{{ payment.amount|floatformat:2 }} {{ payment.currency }}</p>
+        </div>
+      </div>
+
+      <section aria-labelledby="receipt-allocations-heading">
+        <h2 id="receipt-allocations-heading" class="text-sm font-semibold uppercase tracking-wider text-gray-700 mb-3">Installment Allocations</h2>
+        <div class="overflow-x-auto border border-gray-200 rounded-md">
+          <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Installment</th>
+                <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Stage / Category</th>
+                <th scope="col" class="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Allocated ({{ payment.currency }})</th>
+                <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+              {% for allocation in allocations %}
+              <tr>
+                <td class="px-4 py-2.5 text-gray-900">#{{ allocation.installment.sequence }} {{ allocation.installment.description }}</td>
+                <td class="px-4 py-2.5 text-gray-600">{{ allocation.installment.get_category_display }}</td>
+                <td class="px-4 py-2.5 text-right font-medium text-gray-900">{{ allocation.amount|floatformat:2 }}</td>
+                <td class="px-4 py-2.5 text-gray-600">{{ allocation.get_status_display }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="px-4 py-4 text-center text-gray-500">No direct installment allocations; retained as advance credit.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {% if credit_lots %}
+      <section aria-labelledby="receipt-credit-heading">
+        <h2 id="receipt-credit-heading" class="text-sm font-semibold uppercase tracking-wider text-gray-700 mb-2">Advance Credit Recorded from this Payment</h2>
+        <ul class="text-sm text-gray-700 space-y-1">
+          {% for lot in credit_lots %}
+            <li>Credit Lot #{{ lot.pk }} ({{ lot.get_source_type_display }}): Original {{ lot.original_amount|floatformat:2 }} {{ payment.currency }} &middot; Remaining {{ lot.remaining_amount|floatformat:2 }} {{ payment.currency }} ({{ lot.get_status_display }})</li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      <section aria-labelledby="receipt-summary-heading" class="bg-slate-50 rounded-md p-4 border border-slate-200">
+        <h2 id="receipt-summary-heading" class="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Admission Fee Position (As of {{ summary.as_of|date:"d M Y" }})</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+          <div>
+            <span class="text-xs text-gray-500 block">Total Billed</span>
+            <span class="font-semibold text-gray-900">{{ summary.total_billed|floatformat:2 }}</span>
+          </div>
+          <div>
+            <span class="text-xs text-gray-500 block">Total Allocated / Paid</span>
+            <span class="font-semibold text-gray-900">{{ summary.total_paid|floatformat:2 }}</span>
+          </div>
+          <div>
+            <span class="text-xs text-gray-500 block">Total Outstanding</span>
+            <span class="font-semibold text-gray-900">{{ summary.total_outstanding|floatformat:2 }}</span>
+          </div>
+          <div>
+            <span class="text-xs text-gray-500 block">Available Advance Credit</span>
+            <span class="font-semibold text-gray-900">{{ credit_available|floatformat:2 }}</span>
+          </div>
+        </div>
+      </section>
+
+      <footer class="pt-4 border-t border-gray-200 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+        <div>
+          Issued by {{ receipt.issued_by }} on {{ receipt.issued_at|date:"d M Y H:i" }}
+        </div>
+        <div>
+          Computer-generated receipt &middot; Traceable receipt sequence #{{ receipt.sequence }} ({{ receipt.financial_year }})
+        </div>
+      </footer>
+    </div>
+  </article>
+</div>
+{% endblock %}
+

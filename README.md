@@ -3,9 +3,9 @@
 A web-based student admission and fee-management portal for GIIMS, built
 with Django, PostgreSQL, HTMX, and Alpine.js.
 
-> **Project status:** Phases 1–5 implemented. Phase 1 delivered settings, PostgreSQL, the custom `User` model, centre scoping, authentication, Tailwind CSS v4, HTMX, Alpine.js, Ruff, and the test suite. Phase 2 delivered academic years, courses, and centre-scoped batch management under `/academics/`, with role-gated writes. Phase 3 delivered student master, admission lifecycle (`ENQUIRED` → `ENROLLED`), student ID generation on enrollment (`TVM-ASP-AD_001` format), combined enquiry flow, and centre-scoped views under `/students/` and `/admissions/`. Phase 4 delivered versioned fee plans, the per-plan GST snapshot, six-component installment schedules, and the due-date request/approval workflow under `/fees/`. Phase 5 delivered payments, concurrency-safe centre-scoped receipt numbering, FIFO-suggested staff-selected allocations, advance-credit lots, refunds, reversals, and controlled fee-plan reassignment under `/payments/` and `/fees/reassignments/`. Subsequent domain modules are implemented in iterative phases following `docs/PROJECT_SPEC.md`.
+> **Project status:** Phases 1–6 implemented. Phase 1 delivered settings, PostgreSQL, the custom `User` model, centre scoping, authentication, Tailwind CSS v4, HTMX, Alpine.js, Ruff, and the test suite. Phase 2 delivered academic years, courses, and centre-scoped batch management under `/academics/`, with role-gated writes. Phase 3 delivered student master, admission lifecycle (`ENQUIRED` → `ENROLLED`), student ID generation on enrollment (`TVM-ASP-AD_001` format), combined enquiry flow, and centre-scoped views under `/students/` and `/admissions/`. Phase 4 delivered versioned fee plans, the per-plan GST snapshot, six-component installment schedules, and the due-date request/approval workflow under `/fees/`. Phase 5 delivered payments, concurrency-safe centre-scoped receipt numbering, FIFO-suggested staff-selected allocations, advance-credit lots, refunds, reversals, and controlled fee-plan reassignment under `/payments/` and `/fees/reassignments/`. Phase 6 delivered student fee ledgers, printable HTML and server-generated PDF receipts with `RECEIPT_REPRINTED` audit logging, operational and financial reports with formula-safe CSV and PDF exports under `/reports/`, the append-only financial audit trail viewer, live centre-scoped dashboard KPIs, and production deployment security hardening.
 
-## What the application will do
+## What the application does
 
 -   Capture student details and admission/joining information.
 -   Manage centres, academic years, courses, and batches. Academic-year,
@@ -13,11 +13,11 @@ with Django, PostgreSQL, HTMX, and Alpine.js.
     (`ADMIN` and `MANAGEMENT` can create, edit, and toggle them; all
     authenticated roles can view them).
 -   Create admission-specific fee plans and installment schedules.
--   Record payments and generate traceable receipts.
--   Show student fee ledgers and calculate outstanding/overdue amounts.
--   Provide student, admission, collection, and outstanding reports.
--   Enforce role-based and centre-level access.
--   Maintain audit history for sensitive changes.
+-   Record payments and generate traceable, printable HTML and PDF receipts.
+-   Show student fee ledgers and calculate outstanding/overdue amounts as of any chosen date.
+-   Provide student/admission register, outstanding, overdue, collection, adjustment, and financial audit trail reports with CSV and PDF exports under `/reports/`.
+-   Enforce role-based and centre-level access across every page, HTMX endpoint, receipt download, and export.
+-   Maintain append-only audit history for sensitive financial changes and receipt reprints.
 
 See [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) for scope,
 architecture, business rules, and engineering standards.
@@ -34,12 +34,8 @@ AI coding-agent instructions are in [`AGENTS.md`](AGENTS.md).
 -   HTMX
 -   Alpine.js
 -   Tailwind CSS (compiled for production)
--   pytest/pytest-django or one consistently selected Django testing
-    approach
+-   Django TestCase suite (`python manage.py test`)
 -   Ruff for linting and formatting
-
-Choose compatible stable versions during bootstrap and pin them in
-`pyproject.toml` or the chosen dependency lock workflow.
 
 ## Repository layout
 
@@ -51,27 +47,27 @@ Choose compatible stable versions during bootstrap and pin them in
 │   └── PROJECT_SPEC.md
 ├── config/
 ├── apps/
+│   ├── core/
+│   ├── accounts/
+│   ├── centres/
+│   ├── academics/
+│   ├── students/
+│   ├── admissions/
+│   ├── fees/
+│   ├── payments/
+│   └── reports/
 ├── templates/
 ├── static/
-├── tests/
 ├── pyproject.toml
 └── .env.example
 ```
 
-The actual tree may evolve as implementation begins. Do not create
-placeholder apps solely to match this diagram.
-
 ## Local setup
-
-The following is the intended setup flow. Exact commands may need
-adjustment after the initial Django project and dependency files are
-created.
 
 ### 1. Prerequisites
 
 Install: - A supported Python version compatible with the selected
-Django release. - PostgreSQL. - Git. - Node.js only if using a
-Node-based Tailwind build pipeline.
+Django release. - PostgreSQL. - Git. - Node.js for the Tailwind CSS v4 build pipeline.
 
 ### 2. Create and activate a virtual environment
 
@@ -95,20 +91,23 @@ python -m pip install --upgrade pip
 
 Create a local `.env` file based on `.env.example`. Never commit `.env`.
 
-Expected configuration will include values similar to:
+Expected configuration includes values similar to:
 
 ``` dotenv
-DJANGO_SETTINGS_MODULE=config.settings.local
-DJANGO_SECRET_KEY=replace-with-a-long-random-local-secret
+DJANGO_SECRET_KEY=replace-with-a-long-random-local-secret-at-least-50-chars
 DJANGO_DEBUG=True
 DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
-DATABASE_URL=postgresql://giims_app:change-me@localhost:5432/giims
+DB_NAME=giims_db
+DB_USER=giims_app
+DB_PASSWORD=change-me
+DB_HOST=localhost
+DB_PORT=5432
 TIME_ZONE=Asia/Kolkata
 ```
 
-These are examples, not credentials. The application must validate
-required settings at startup. Production must use a separate secret and
-`DEBUG=False`.
+These are examples, not credentials. The application validates
+required settings at startup. Production must use a separate random secret of at least 50 characters and
+`DJANGO_DEBUG=False` (which automatically enables `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, `SECURE_HSTS_SECONDS=31536000`, `SECURE_HSTS_INCLUDE_SUBDOMAINS`, `SECURE_HSTS_PRELOAD`, `SECURE_PROXY_SSL_HEADER`, and the SMTP email backend).
 
 ### 4. Create the PostgreSQL database
 
@@ -116,7 +115,7 @@ Example commands (adapt the role/database names to your environment):
 
 ``` sql
 CREATE ROLE giims_app WITH LOGIN PASSWORD 'use-a-local-secret';
-CREATE DATABASE giims OWNER giims_app;
+CREATE DATABASE giims_db OWNER giims_app;
 ```
 
 Use a least-privilege application role. Do not use the PostgreSQL
@@ -124,27 +123,24 @@ superuser as the application's database account.
 
 ### 5. Install dependencies
 
-Once the project dependency files have been created:
-
 ``` bash
-python -m pip install -e ".[dev]"
+uv sync
+npm install
+npm run build
 ```
-
-If the project uses a different dependency manager, follow the committed
-lockfile and document the canonical command here.
 
 ### 6. Run migrations and create an administrator
 
 ``` bash
-python manage.py check
-python manage.py migrate
-python manage.py createsuperuser
+uv run python manage.py check
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
 ```
 
 ### 7. Start the development server
 
 ``` bash
-python manage.py runserver
+uv run python manage.py runserver
 ```
 
 Open `http://127.0.0.1:8000/`.
@@ -152,9 +148,6 @@ Open `http://127.0.0.1:8000/`.
 Do not use Django's development server for production.
 
 ## Common development commands
-
-Use the commands configured by the repository; these are the intended
-defaults:
 
 ``` bash
 # Build frontend assets (Tailwind CSS v4, HTMX, Alpine.js)
@@ -167,29 +160,26 @@ npm run watch:css
 uv run python manage.py runserver
 
 # Run tests
-pytest
+uv run python manage.py test
 
 # Lint
-ruff check .
+uv run ruff check .
 
 # Format check
-ruff format --check .
+uv run ruff format --check .
 
 # Django deployment/security checks
-python manage.py check --deploy
+uv run python manage.py check --deploy
 
 # Review migrations
-python manage.py makemigrations --check --dry-run
+uv run python manage.py makemigrations --check --dry-run
 ```
 
-If a command is not configured yet, configure it before treating it as a
-required project check. Run migrations in a controlled deployment
-process, not automatically on every production web-worker startup.
+Run migrations in a controlled deployment process, not automatically on every production web-worker startup.
 
 ## Core engineering rules
 
--   Use a custom Django user model from the start if the project
-    requires one.
+-   Use a custom Django user model from the start.
 -   Enforce permissions and centre scoping server-side.
 -   Use `DecimalField` for money.
 -   Keep payment posting, allocations, reversals, and receipt issuance
@@ -219,11 +209,11 @@ process, not automatically on every production web-worker startup.
     suggestions, concurrency-safe centre-scoped receipt numbering, advance
     credit, refunds, reversals, audit events, and controlled fee-plan
     reassignment.
-6.  Student ledger, collection/outstanding reports, audit trail, security review, tests, and deployment.
+6.  **Done (Phase 6):** Student fee ledgers, printable HTML and server-generated PDF receipts with reprint audit logging, operational/financial reports with CSV and PDF exports, financial audit trail viewer, live centre-scoped dashboard, and production deployment hardening.
 
 ## Security note
 
-This system will hold personal and financial records. Do not put real
+This system holds personal and financial records. Do not put real
 student data, passwords, API keys, private documents, or production
 database dumps in Git, prompts, screenshots, or test fixtures. Configure
 backups, access controls, HTTPS, secure cookies, and production secrets
@@ -243,18 +233,21 @@ allocation with advance credit for excess, `ACCOUNTS` draft plan editing
 (approval stays with `ADMIN`/`MANAGEMENT`), mandatory-reason reassignment
 approval by `ADMIN`/`MANAGEMENT`, and refund/reversal approval roles.
 
-Still to confirm before the related workflows:
+Resolved in Phase 6: CSV (with formula-injection neutralization) and
+server-generated PDF exports alongside printable HTML views; role access
+matrix (`ADMIN`, `MANAGEMENT`, and `ACCOUNTS` access all financial reports,
+audit trails, and exports; `ADMISSIONS` views the Reports Hub, Admission
+Register, and read-only Student Fee Ledgers for accessible centres); and
+append-only `RECEIPT_REPRINTED` audit logging on receipt print/PDF downloads.
+
+Still to confirm before future enhancements:
 
 -   The canonical payment-mode list, cheque/DD clearance behaviour, and
     whether a refund can ever bypass the advance-credit ledger.
 -   Whether `ADMIN`/`MANAGEMENT` may approve their own refund, reversal, or
     reassignment request (four-eyes approval).
 -   Whether reversal should remain blocked after an approved reassignment.
--   Receipt printing/PDF layout and refund settlement references.
--   Academic year boundaries and the batch naming convention.
--   Roles and cross-centre visibility beyond the current model.
--   Hosting, private document storage, and backup retention.
--   Export formats required at launch.
+-   Private student document storage (`StudentDocument`) and backup retention policy.
 
 ## Contributing
 

@@ -19,6 +19,17 @@
       </p>
     </div>
     <div class="flex flex-wrap items-center gap-2 text-right">
+      <a href="{% url 'reports:student_ledger' payment.admission_id %}" class="px-3 py-1.5 rounded-md border border-gray-300 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50">
+        Student Fee Ledger
+      </a>
+      {% if payment.receipt %}
+        <a href="{% url 'payments:receipt_print' payment.pk %}" class="px-3 py-1.5 rounded-md border border-indigo-200 bg-indigo-50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+          Print Receipt
+        </a>
+        <a href="{% url 'payments:receipt_pdf' payment.pk %}" class="px-3 py-1.5 rounded-md bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700">
+          Download PDF Receipt
+        </a>
+      {% endif %}
       <span class="px-3 py-1 text-sm rounded-full {% if payment.status == 'POSTED' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
         Payment: {{ payment.get_status_display }}
       </span>
@@ -125,6 +136,14 @@
       <h2 id="payment-actions-heading" class="text-lg font-medium text-gray-900 mb-4">Actions</h2>
       {% if can_record_payment %}
         <div class="space-y-3">
+          {% if payment.receipt %}
+            <a href="{% url 'payments:receipt_print' payment.pk %}" class="block w-full rounded-md border border-gray-300 px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50">
+              Printable receipt view
+            </a>
+            <a href="{% url 'payments:receipt_pdf' payment.pk %}" class="block w-full rounded-md border border-indigo-200 px-4 py-2 text-center text-sm font-medium text-indigo-700 hover:bg-indigo-50">
+              Download PDF receipt
+            </a>
+          {% endif %}
           {% if credit_available %}
             <a href="{% url 'payments:credit_apply' %}?admission={{ payment.admission_id }}" class="block w-full rounded-md border border-indigo-200 px-4 py-2 text-center text-sm font-medium text-indigo-700 hover:bg-indigo-50">
               Apply advance credit

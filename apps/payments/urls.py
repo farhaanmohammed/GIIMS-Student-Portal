@@ -8,6 +8,8 @@ urlpatterns = [
     path("", views.PaymentListView.as_view(), name="payment_list"),
     path("collect/", views.PaymentCreateView.as_view(), name="payment_create"),
     path("<int:pk>/", views.PaymentDetailView.as_view(), name="payment_detail"),
+    path("<int:pk>/receipt/", views.ReceiptPrintView.as_view(), name="receipt_print"),
+    path("<int:pk>/receipt/pdf/", views.ReceiptPdfView.as_view(), name="receipt_pdf"),
     path(
         "credit/apply/",
         views.CreditApplicationView.as_view(),
