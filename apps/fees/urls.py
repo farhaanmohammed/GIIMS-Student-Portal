@@ -1,6 +1,6 @@
 from django.urls import path
 
-from apps.fees import views
+from apps.fees import reassignment_views, views
 
 app_name = "fees"
 
@@ -30,5 +30,20 @@ urlpatterns = [
         "due-date-requests/<int:pk>/decide/",
         views.DueDateRequestDecideView.as_view(),
         name="due_date_request_decide",
+    ),
+    path(
+        "reassignments/",
+        reassignment_views.FeeReassignmentListView.as_view(),
+        name="reassignment_list",
+    ),
+    path(
+        "reassignments/request/",
+        reassignment_views.FeeReassignmentCreateView.as_view(),
+        name="reassignment_request",
+    ),
+    path(
+        "reassignments/<int:pk>/decide/",
+        reassignment_views.FeeReassignmentDecideView.as_view(),
+        name="reassignment_decide",
     ),
 ]

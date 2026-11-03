@@ -25,7 +25,8 @@ from apps.fees.models import (
 )
 from apps.fees.selectors import effective_due_date
 
-PLAN_MANAGER_ROLES = frozenset({"ADMIN", "MANAGEMENT"})
+PLAN_EDITOR_ROLES = frozenset({"ADMIN", "MANAGEMENT", "ACCOUNTS"})
+PLAN_APPROVER_ROLES = frozenset({"ADMIN", "MANAGEMENT"})
 DUE_DATE_APPLIER_ROLES = frozenset({"ADMIN", "MANAGEMENT", "ACCOUNTS"})
 MIN_REASON_LENGTH = 10
 MONEY_QUANTUM = Decimal("0.01")
@@ -217,7 +218,7 @@ def create_draft_fee_plan(
     notes: str = "",
 ) -> FeePlan:
     """Create a first draft fee plan for an enrolled admission."""
-    _require_role(actor, PLAN_MANAGER_ROLES, "create fee plans")
+    _require_role(actor, PLAN_EDITOR_ROLES, "create fee plans")
 
     admission = Admission.objects.select_related("centre").get(pk=admission.pk)
     _require_centre_access(actor, admission)
@@ -259,7 +260,7 @@ def update_draft_fee_plan(
     actor,
 ) -> FeePlan:
     """Edit a draft plan. Approved, superseded, and cancelled plans are rejected."""
-    _require_role(actor, PLAN_MANAGER_ROLES, "edit fee plans")
+    _require_role(actor, PLAN_EDITOR_ROLES, "edit fee plans")
 
     plan = FeePlan.objects.select_for_update().select_related("admission__centre").get(pk=plan.pk)
     _require_centre_access(actor, plan.admission)
@@ -317,7 +318,7 @@ def approve_fee_plan(plan: FeePlan, actor) -> FeePlan:
     Exactly one approved plan remains per admission. The previous version's
     installments and revision history are left untouched.
     """
-    _require_role(actor, PLAN_MANAGER_ROLES, "approve fee plans")
+    _require_role(actor, PLAN_APPROVER_ROLES, "approve fee plans")
 
     plan = FeePlan.objects.select_for_update().select_related("admission__centre").get(pk=plan.pk)
     _require_centre_access(actor, plan.admission)
@@ -341,7 +342,7 @@ def approve_fee_plan(plan: FeePlan, actor) -> FeePlan:
 @transaction.atomic
 def create_fee_plan_version(plan: FeePlan, actor) -> FeePlan:
     """Copy an approved plan into a new draft version without touching the original."""
-    _require_role(actor, PLAN_MANAGER_ROLES, "create fee plan versions")
+    _require_role(actor, PLAN_EDITOR_ROLES, "create fee plan versions")
 
     source = FeePlan.objects.select_for_update().select_related("admission__centre").get(pk=plan.pk)
     _require_centre_access(actor, source.admission)
@@ -369,7 +370,7 @@ def create_fee_plan_version(plan: FeePlan, actor) -> FeePlan:
 @transaction.atomic
 def cancel_draft_fee_plan(plan: FeePlan, actor, reason) -> FeePlan:
     """Abandon a draft plan. Cancelling an approved plan is out of scope."""
-    _require_role(actor, PLAN_MANAGER_ROLES, "cancel fee plans")
+    _require_role(actor, PLAN_APPROVER_ROLES, "cancel fee plans")
     reason = _validate_reason(reason)
 
     plan = FeePlan.objects.select_for_update().select_related("admission__centre").get(pk=plan.pk)

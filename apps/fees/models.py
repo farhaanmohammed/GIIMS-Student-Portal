@@ -253,6 +253,101 @@ class InstallmentDueDateRevision(models.Model):
         raise ValueError("Installment due-date revisions are append-only and cannot be deleted.")
 
 
+class FeePlanReassignment(TimeStampedModel):
+    """
+    Controlled request to move an admission to a corrected fee structure.
+
+    ``ACCOUNTS`` may raise the request; only ``ADMIN``/``MANAGEMENT`` may
+    approve it. The totals are snapshotted so the financial impact shown at
+    decision time remains auditable even after later plan edits.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    admission = models.ForeignKey(
+        "admissions.Admission",
+        on_delete=models.PROTECT,
+        related_name="fee_plan_reassignments",
+    )
+    from_plan = models.ForeignKey(
+        FeePlan,
+        on_delete=models.PROTECT,
+        related_name="reassignment_sources",
+    )
+    to_plan = models.ForeignKey(
+        FeePlan,
+        on_delete=models.PROTECT,
+        related_name="reassignment_targets",
+    )
+    reason = models.TextField(help_text="Required business reason, at least 10 characters.")
+    previous_total = models.DecimalField(max_digits=12, decimal_places=2)
+    proposed_total = models.DecimalField(max_digits=12, decimal_places=2)
+    difference = models.DecimalField(max_digits=12, decimal_places=2)
+    had_payments = models.BooleanField(
+        default=False,
+        help_text="Whether payments, allocations, or credit existed when requested.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="requested_fee_plan_reassignments",
+    )
+    requested_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="decided_fee_plan_reassignments",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.TextField(blank=True)
+    request_key = models.CharField(max_length=64, unique=True, null=True, blank=True)
+
+    class Meta:
+        ordering = ("-requested_at", "-pk")
+        verbose_name = "Fee Plan Reassignment"
+        verbose_name_plural = "Fee Plan Reassignments"
+        constraints: ClassVar[list[models.BaseConstraint]] = [
+            models.CheckConstraint(
+                condition=~Q(from_plan=F("to_plan")),
+                name="reassignment_plans_differ",
+            ),
+            models.CheckConstraint(
+                condition=Q(difference=F("proposed_total") - F("previous_total")),
+                name="reassignment_difference_matches_totals",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(status="PENDING", decided_by__isnull=True, decided_at__isnull=True)
+                    | (
+                        Q(status__in=["APPROVED", "REJECTED"])
+                        & Q(decided_by__isnull=False)
+                        & Q(decided_at__isnull=False)
+                    )
+                ),
+                name="reassignment_decision_metadata",
+            ),
+            models.UniqueConstraint(
+                fields=["admission"],
+                condition=Q(status="PENDING"),
+                name="reassignment_one_pending_per_admission",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Reassignment {self.pk} for admission {self.admission_id} ({self.status})"
+
+
 class DueDateChangeRequest(models.Model):
     """
     Workflow row for a requested due-date change.

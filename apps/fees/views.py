@@ -41,7 +41,8 @@ from apps.fees.services import (
 )
 
 PAGE_SIZE = 25
-PLAN_MANAGER_ROLES = ("ADMIN", "MANAGEMENT")
+PLAN_EDITOR_ROLES = ("ADMIN", "MANAGEMENT", "ACCOUNTS")
+PLAN_APPROVER_ROLES = ("ADMIN", "MANAGEMENT")
 DUE_DATE_APPLIER_ROLES = ("ADMIN", "MANAGEMENT", "ACCOUNTS")
 
 
@@ -67,11 +68,19 @@ def _installments_for_user(user) -> QuerySet[FeeInstallment]:
     )
 
 
-def _can_manage_plans(user) -> bool:
+def _can_edit_plans(user) -> bool:
     """Presentation helper only; services enforce writes."""
     return bool(
         user.is_authenticated
-        and (user.is_superuser or getattr(user, "role", None) in PLAN_MANAGER_ROLES)
+        and (user.is_superuser or getattr(user, "role", None) in PLAN_EDITOR_ROLES)
+    )
+
+
+def _can_approve_plans(user) -> bool:
+    """Presentation helper only; services enforce writes."""
+    return bool(
+        user.is_authenticated
+        and (user.is_superuser or getattr(user, "role", None) in PLAN_APPROVER_ROLES)
     )
 
 
@@ -144,7 +153,9 @@ class FeePlanListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["filters"] = self.get_filters()
         context["querystring"] = _urlencode_filters(context["filters"])
-        context["can_manage_plans"] = _can_manage_plans(self.request.user)
+        context["can_edit_plans"] = _can_edit_plans(self.request.user)
+        context["can_approve_plans"] = _can_approve_plans(self.request.user)
+        context["can_manage_plans"] = _can_edit_plans(self.request.user)
         context["status_options"] = FeePlan.Status.choices
         page_obj = context.get("page_obj")
         if page_obj is not None:
@@ -208,7 +219,8 @@ class FeePlanDetailView(LoginRequiredMixin, DetailView):
                 "request_history": DueDateChangeRequest.objects.filter(installment__fee_plan=plan)
                 .select_related("installment", "requested_by", "decided_by")
                 .order_by("-requested_at"),
-                "can_manage_plans": _can_manage_plans(self.request.user),
+                "can_edit_plans": _can_edit_plans(self.request.user),
+                "can_approve_plans": _can_approve_plans(self.request.user),
                 "can_apply_due_date": _can_apply_due_date(self.request.user),
                 "today": today,
             }
@@ -218,7 +230,7 @@ class FeePlanDetailView(LoginRequiredMixin, DetailView):
 
 class FeePlanCreateView(LoginRequiredMixin, RoleRequiredViewMixin, View):
     template_name = "fees/fee_plan_form.html"
-    allowed_roles = PLAN_MANAGER_ROLES
+    allowed_roles = PLAN_EDITOR_ROLES
 
     def _get_admission(self, request: HttpRequest):
         admission_id = request.GET.get("admission") or request.POST.get("admission")
@@ -275,7 +287,7 @@ class FeePlanCreateView(LoginRequiredMixin, RoleRequiredViewMixin, View):
 
 class FeePlanUpdateView(LoginRequiredMixin, RoleRequiredViewMixin, View):
     template_name = "fees/fee_plan_form.html"
-    allowed_roles = PLAN_MANAGER_ROLES
+    allowed_roles = PLAN_EDITOR_ROLES
 
     def _get_plan(self, request: HttpRequest, pk: int) -> FeePlan:
         return get_object_or_404(_fee_plans_for_user(request.user), pk=pk)
@@ -335,7 +347,7 @@ class PostOnlyMixin:
 
 
 class FeePlanApproveView(LoginRequiredMixin, RoleRequiredViewMixin, PostOnlyMixin, View):
-    allowed_roles = PLAN_MANAGER_ROLES
+    allowed_roles = PLAN_APPROVER_ROLES
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         plan = get_object_or_404(_fee_plans_for_user(request.user), pk=pk)
@@ -349,7 +361,7 @@ class FeePlanApproveView(LoginRequiredMixin, RoleRequiredViewMixin, PostOnlyMixi
 
 
 class FeePlanVersionView(LoginRequiredMixin, RoleRequiredViewMixin, PostOnlyMixin, View):
-    allowed_roles = PLAN_MANAGER_ROLES
+    allowed_roles = PLAN_EDITOR_ROLES
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         plan = get_object_or_404(_fee_plans_for_user(request.user), pk=pk)
@@ -368,7 +380,7 @@ class FeePlanVersionView(LoginRequiredMixin, RoleRequiredViewMixin, PostOnlyMixi
 
 
 class FeePlanCancelView(LoginRequiredMixin, RoleRequiredViewMixin, PostOnlyMixin, View):
-    allowed_roles = PLAN_MANAGER_ROLES
+    allowed_roles = PLAN_APPROVER_ROLES
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         plan = get_object_or_404(_fee_plans_for_user(request.user), pk=pk)

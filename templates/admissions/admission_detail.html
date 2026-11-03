@@ -46,10 +46,17 @@
   <div class="bg-white shadow rounded-lg p-6 mb-6">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
       <h2 class="text-lg font-medium text-gray-900">Fee Plans</h2>
-      {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'MANAGEMENT' %}
-        {% if not admission.fee_plans.exists %}
-          <a href="{% url 'fees:fee_plan_create' %}?admission={{ admission.pk }}" class="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm">Create fee plan</a>
-        {% endif %}
+      {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'MANAGEMENT' or request.user.role == 'ACCOUNTS' %}
+        <div class="flex flex-wrap items-center gap-2">
+          {% if not admission.fee_plans.exists %}
+            <a href="{% url 'fees:fee_plan_create' %}?admission={{ admission.pk }}" class="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm">Create fee plan</a>
+          {% endif %}
+          {% for plan in admission.fee_plans.all %}
+            {% if plan.status == 'APPROVED' %}
+              <a href="{% url 'payments:payment_create' %}?admission={{ admission.pk }}" class="px-3 py-1.5 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-50 text-sm">Record payment</a>
+            {% endif %}
+          {% endfor %}
+        </div>
       {% endif %}
     </div>
     <ul class="space-y-2">

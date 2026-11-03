@@ -9,6 +9,7 @@
     </div>
     <div class="flex items-center gap-3">
       {% if request.user.is_superuser or request.user.role == 'ADMIN' or request.user.role == 'MANAGEMENT' or request.user.role == 'ACCOUNTS' %}
+        <a href="{% url 'fees:reassignment_list' %}" class="px-4 py-2 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-50">Reassignments</a>
         <a href="{% url 'fees:due_date_request_list' %}" class="px-4 py-2 border border-indigo-200 text-indigo-700 rounded-md hover:bg-indigo-50">Due-Date Requests</a>
       {% endif %}
     </div>

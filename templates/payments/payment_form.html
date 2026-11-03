@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Record Payment - {{ admission.student.get_full_name }} - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6">
+    <p class="text-sm text-gray-500">
+      <a href="{% url 'payments:payment_list' %}" class="text-indigo-600 hover:text-indigo-900">Payments</a>
+      /
+      <a href="{% url 'admissions:admission_detail' admission.pk %}" class="text-indigo-600 hover:text-indigo-900">{{ admission.student.get_full_name }}</a>
+    </p>
+    <h1 class="mt-1 text-2xl font-semibold text-gray-900">Record payment</h1>
+    <p class="mt-1 text-sm text-gray-500">
+      {{ admission.student.get_full_name }} |
+      {{ admission.student.student_id|default:"No student ID" }} |
+      {{ admission.course.code }} / {{ admission.batch.code }} |
+      {{ admission.centre.name }} ({{ admission.centre.code }})
+    </p>
+    {% if fee_plan %}
+      <p class="mt-1 text-sm text-gray-500">
+        Approved fee plan v{{ fee_plan.version }} &middot;
+        total payable {{ fee_plan.total_payable|floatformat:2 }} {{ fee_plan.currency }}
+      </p>
+    {% endif %}
+  </div>
+
+  {% if messages %}
+    <div class="mb-4 space-y-2">
+      {% for message in messages %}
+        <div class="rounded-md px-4 py-3 text-sm {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200{% else %}bg-green-50 text-green-800 border border-green-200{% endif %}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white shadow rounded-lg p-6">
+      <p class="text-sm text-gray-500">Total billed</p>
+      <p class="mt-1 text-lg font-semibold text-gray-900">{{ summary.total_billed|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-6">
+      <p class="text-sm text-gray-500">Total paid</p>
+      <p class="mt-1 text-lg font-semibold text-gray-900">{{ summary.total_paid|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-6">
+      <p class="text-sm text-gray-500">Total outstanding</p>
+      <p class="mt-1 text-lg font-semibold {% if total_outstanding %}text-red-700{% else %}text-gray-900{% endif %}">{{ total_outstanding|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-6">
+      <p class="text-sm text-gray-500">Available advance credit</p>
+      <p class="mt-1 text-lg font-semibold text-gray-900">{{ credit_available|floatformat:2 }}</p>
+    </div>
+  </div>
+
+  <form method="post"
+        action="{% url 'payments:payment_create' %}?admission={{ admission.pk }}"
+        class="space-y-6">
+    {% csrf_token %}
+    {{ form.request_key }}
+
+    {% if form.non_field_errors %}
+      <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <section class="bg-white shadow rounded-lg p-6" aria-labelledby="payment-details-heading">
+      <h2 id="payment-details-heading" class="text-lg font-medium text-gray-900 mb-4">Payment details</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="{{ form.collection_centre.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.collection_centre.label }}</label>
+          {{ form.collection_centre }}
+          <p class="mt-1 text-xs text-gray-500">{{ form.collection_centre.help_text }}</p>
+          {% if form.collection_centre.errors %}<p class="mt-1 text-sm text-red-700">{{ form.collection_centre.errors }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.paid_on.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.paid_on.label }}</label>
+          {{ form.paid_on }}
+          {% if form.paid_on.errors %}<p class="mt-1 text-sm text-red-700">{{ form.paid_on.errors }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.amount.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.amount.label }}</label>
+          <div class="flex items-start gap-2">
+            <div class="flex-1">
+              {{ form.amount }}
+            </div>
+            <button type="button"
+                    class="mt-0.5 inline-flex items-center rounded-md border border-indigo-200 px-3 py-2 text-sm text-indigo-700 hover:bg-indigo-50"
+                    hx-get="{% url 'payments:payment_create' %}?admission={{ admission.pk }}"
+                    hx-include="#{{ form.amount.id_for_label }}"
+                    hx-target="body"
+                    hx-push-url="true"
+                    hx-disabled-elt="this">
+              Refresh suggestions
+            </button>
+          </div>
+          <p id="suggestion-loading" class="htmx-indicator mt-1 text-xs text-gray-500" aria-live="polite">Recalculating suggestions&hellip;</p>
+          <p class="mt-1 text-xs text-gray-500">The amount used for suggestions is re-derived from the form on the server.</p>
+          {% if form.amount.errors %}<p class="mt-1 text-sm text-red-700">{{ form.amount.errors }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.mode.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.mode.label }}</label>
+          {{ form.mode }}
+          {% if form.mode.errors %}<p class="mt-1 text-sm text-red-700">{{ form.mode.errors }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.reference.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.reference.label }}</label>
+          {{ form.reference }}
+          <p class="mt-1 text-xs text-gray-500">{{ form.reference.help_text }}</p>
+          {% if form.reference.errors %}<p class="mt-1 text-sm text-red-700">{{ form.reference.errors }}</p>{% endif %}
+        </div>
+        <div class="sm:col-span-2">
+          <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.notes.label }}</label>
+          {{ form.notes }}
+          {% if form.notes.errors %}<p class="mt-1 text-sm text-red-700">{{ form.notes.errors }}</p>{% endif %}
+        </div>
+        <div class="sm:col-span-2">
+          <div class="flex items-start gap-3">
+            {{ form.retain_as_credit }}
+            <label for="{{ form.retain_as_credit.id_for_label }}" class="text-sm text-gray-700">{{ form.retain_as_credit.label }}</label>
+          </div>
+          {% if form.retain_as_credit.errors %}<p class="mt-1 text-sm text-red-700">{{ form.retain_as_credit.errors }}</p>{% endif %}
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-white shadow rounded-lg p-6" aria-labelledby="suggestions-heading">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <h2 id="suggestions-heading" class="text-lg font-medium text-gray-900">Oldest-first suggestions</h2>
+        <p class="text-sm text-gray-500">Suggested for {{ suggested_for|floatformat:2 }}</p>
+      </div>
+      <p class="mb-4 text-sm text-gray-500">
+        Suggestions are read-only guidance from the server. They never override what you enter below.
+      </p>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Installment</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+              <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
+              <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Suggested</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {% for row in suggestions %}
+              <tr>
+                <td class="px-4 py-3 text-sm text-gray-500">{{ row.installment.sequence }}</td>
+                <td class="px-4 py-3 text-sm text-gray-900">{{ row.installment.description }}</td>
+                <td class="px-4 py-3 text-sm text-gray-500">{{ row.installment.get_category_display }}</td>
+                <td class="px-4 py-3 text-right text-sm text-gray-900">{{ row.outstanding|floatformat:2 }}</td>
+                <td class="px-4 py-3 text-right text-sm font-medium {% if row.suggested_amount %}text-indigo-700{% else %}text-gray-500{% endif %}">{{ row.suggested_amount|floatformat:2 }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">No installments are available for suggestions.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="bg-white shadow rounded-lg p-6"
+             aria-labelledby="allocations-heading"
+             x-data="{
+               amount: 0,
+               allocated: 0,
+               recalc(el) {
+                 const amountInput = document.getElementById('{{ form.amount.id_for_label }}');
+                 this.amount = amountInput ? (parseFloat(amountInput.value) || 0) : 0;
+                 let total = 0;
+                 el.querySelectorAll('input[name^=allocation_]').forEach(function (input) {
+                   total += parseFloat(input.value) || 0;
+                 });
+                 this.allocated = total;
+               }
+             }"
+             x-init="recalc($el)"
+             @input="recalc($el)">
+      <h2 id="allocations-heading" class="text-lg font-medium text-gray-900 mb-2">Allocations</h2>
+      <p class="mb-4 text-sm text-gray-600">
+        Leave allocations blank to apply oldest-first (FIFO); enter amounts to choose installments; any unallocated amount is retained as advance credit.
+      </p>
+
+      <div class="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-md bg-slate-50 p-4 text-sm" aria-live="polite">
+        <div>
+          <p class="text-gray-500">Amount received</p>
+          <p class="font-medium text-gray-900"><span x-text="amount.toFixed(2)">0.00</span></p>
+        </div>
+        <div>
+          <p class="text-gray-500">Allocated in this form</p>
+          <p class="font-medium text-gray-900"><span x-text="allocated.toFixed(2)">0.00</span></p>
+        </div>
+        <div>
+          <p class="text-gray-500">Remaining / retained as credit</p>
+          <p class="font-medium text-gray-900"><span x-text="(amount - allocated).toFixed(2)">0.00</span></p>
+        </div>
+      </div>
+      <p class="mb-4 text-xs text-gray-500">This running total is presentational only. The server validates and posts allocations.</p>
+
+      <div class="space-y-4">
+        {% for row in form.allocation_fields %}
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start border-b border-gray-100 pb-4 last:border-0 last:pb-0" data-field="{{ row.field.name }}">
+            <div class="sm:col-span-7">
+              <label for="{{ row.field.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                #{{ row.installment.sequence }} {{ row.installment.description }}
+              </label>
+              <p class="mt-1 text-xs text-gray-500">
+                {{ row.installment.get_category_display }} &middot;
+                outstanding {{ row.outstanding|floatformat:2 }} &middot;
+                suggested {{ row.suggested|floatformat:2 }}
+              </p>
+              {% if row.field.errors %}<p class="mt-1 text-sm text-red-700">{{ row.field.errors }}</p>{% endif %}
+            </div>
+            <div class="sm:col-span-5">
+              <span class="block text-xs font-medium text-gray-500">Amount to allocate</span>
+              {{ row.field }}
+            </div>
+          </div>
+        {% empty %}
+          <p class="text-sm text-gray-500">No installments are available to allocate.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="flex flex-wrap justify-end gap-3">
+      <a href="{% url 'admissions:admission_detail' admission.pk %}" class="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-50">Cancel</a>
+      <button type="submit"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              hx-disabled-elt="this">
+        Record payment &amp; issue receipt
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

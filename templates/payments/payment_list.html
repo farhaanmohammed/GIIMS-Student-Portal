@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Payments &amp; Receipts - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="text-sm text-gray-500">
+        <a href="{% url 'dashboard' %}" class="text-indigo-600 hover:text-indigo-900">Dashboard</a>
+        / Payments
+      </p>
+      <h1 class="mt-1 text-2xl font-semibold text-gray-900">Payments &amp; Receipts</h1>
+      <p class="mt-1 text-sm text-gray-500">
+        Centre-scoped collection register. Receipt numbers are issued on the server and never reused.
+      </p>
+    </div>
+    {% if can_record_payment %}
+      <div class="text-right">
+        <a href="{% url 'payments:payment_create' %}" class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+          Record payment
+        </a>
+        <p class="mt-1 text-xs text-gray-500">Open an enrolled admission to select the student first.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if messages %}
+    <div class="mb-4 space-y-2">
+      {% for message in messages %}
+        <div class="rounded-md px-4 py-3 text-sm {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200{% else %}bg-green-50 text-green-800 border border-green-200{% endif %}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="get"
+        action="{% url 'payments:payment_list' %}"
+        class="mb-4 flex flex-wrap items-end gap-3"
+        hx-get="{% url 'payments:payment_list' %}"
+        hx-target="#payment-table"
+        hx-push-url="true"
+        hx-indicator="#payment-loading"
+        hx-trigger="submit, change from:select, keyup changed delay:400ms from:input[name='q']"
+        aria-label="Filter payments">
+    <div>
+      <label for="payment-filter-q" class="block text-xs font-medium text-gray-600">Search</label>
+      <input id="payment-filter-q" type="text" name="q" value="{{ filters.q }}"
+             placeholder="Name, student ID, receipt, reference..."
+             class="mt-1 block w-64 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600">
+    </div>
+    <div>
+      <label for="payment-filter-mode" class="block text-xs font-medium text-gray-600">Mode</label>
+      <select id="payment-filter-mode" name="mode"
+              class="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600">
+        <option value="">All modes</option>
+        {% for value, label in mode_options %}
+          <option value="{{ value }}" {% if filters.mode == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="payment-filter-status" class="block text-xs font-medium text-gray-600">Status</label>
+      <select id="payment-filter-status" name="status"
+              class="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600">
+        <option value="">All statuses</option>
+        {% for value, label in status_options %}
+          <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="payment-filter-centre" class="block text-xs font-medium text-gray-600">Collection centre</label>
+      <select id="payment-filter-centre" name="centre"
+              class="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600">
+        <option value="">All accessible centres</option>
+        {% for centre in centre_options %}
+          <option value="{{ centre.pk }}" {% if filters.centre == centre.pk|stringformat:"s" %}selected{% endif %}>{{ centre.name }} ({{ centre.code }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex items-center gap-2">
+      <button type="submit"
+              class="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200"
+              hx-disabled-elt="this">
+        Filter
+      </button>
+      <a href="{% url 'payments:payment_list' %}" class="text-sm text-indigo-600 hover:text-indigo-900">Reset</a>
+      <span id="payment-loading" class="htmx-indicator text-sm text-gray-500" aria-live="polite">Loading&hellip;</span>
+    </div>
+  </form>
+
+  <div id="payment-table">
+    {% include "payments/partials/_payment_table.html" %}
+  </div>
+</div>
+{% endblock %}

@@ -3,7 +3,7 @@
 A web-based student admission and fee-management portal for GIIMS, built
 with Django, PostgreSQL, HTMX, and Alpine.js.
 
-> **Project status:** Phases 1–4 implemented. Phase 1 delivered settings, PostgreSQL, the custom `User` model, centre scoping, authentication, Tailwind CSS v4, HTMX, Alpine.js, Ruff, and the test suite. Phase 2 delivered academic years, courses, and centre-scoped batch management under `/academics/`, with role-gated writes. Phase 3 delivered student master, admission lifecycle (`ENQUIRED` → `ENROLLED`), student ID generation on enrollment (`TVM-ASP-AD_001` format), combined enquiry flow, and centre-scoped views under `/students/` and `/admissions/`. Phase 4 delivered versioned fee plans, the per-plan GST snapshot, six-component installment schedules, and the due-date request/approval workflow under `/fees/`. Subsequent domain modules are implemented in iterative phases following `docs/PROJECT_SPEC.md`.
+> **Project status:** Phases 1–5 implemented. Phase 1 delivered settings, PostgreSQL, the custom `User` model, centre scoping, authentication, Tailwind CSS v4, HTMX, Alpine.js, Ruff, and the test suite. Phase 2 delivered academic years, courses, and centre-scoped batch management under `/academics/`, with role-gated writes. Phase 3 delivered student master, admission lifecycle (`ENQUIRED` → `ENROLLED`), student ID generation on enrollment (`TVM-ASP-AD_001` format), combined enquiry flow, and centre-scoped views under `/students/` and `/admissions/`. Phase 4 delivered versioned fee plans, the per-plan GST snapshot, six-component installment schedules, and the due-date request/approval workflow under `/fees/`. Phase 5 delivered payments, concurrency-safe centre-scoped receipt numbering, FIFO-suggested staff-selected allocations, advance-credit lots, refunds, reversals, and controlled fee-plan reassignment under `/payments/` and `/fees/reassignments/`. Subsequent domain modules are implemented in iterative phases following `docs/PROJECT_SPEC.md`.
 
 ## What the application will do
 
@@ -22,7 +22,7 @@ with Django, PostgreSQL, HTMX, and Alpine.js.
 See [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) for scope,
 architecture, business rules, and engineering standards.
 Implementation milestones, completed deliverables, and test records are tracked in [`docs/PROGRESS.md`](docs/PROGRESS.md).
-The Phase 4 fee plan, installment schedule, and due-date contract is in [`docs/PHASE4_FEE_PLANS.md`](docs/PHASE4_FEE_PLANS.md). It is implemented and migrated (`apps/fees/migrations/0001_initial.py`); §16 of that document records the verification run and the deviations from the original design.
+The Phase 4 fee plan, installment schedule, and due-date contract is in [`docs/PHASE4_FEE_PLANS.md`](docs/PHASE4_FEE_PLANS.md). The Phase 5 payment, receipt, allocation, credit, refund, reversal, and reassignment contract is in [`docs/PHASE5_PAYMENTS.md`](docs/PHASE5_PAYMENTS.md). Both are implemented and migrated.
 AI coding-agent instructions are in [`AGENTS.md`](AGENTS.md).
 
 ## Technology
@@ -215,7 +215,10 @@ process, not automatically on every production web-worker startup.
     six components per plan including stage-based application and admission
     charges, approved-plan immutability, and the due-date request/approval
     workflow. No discount or waiver module.
-5.  Payments, allocations, reversals, and traceable receipts.
+5.  **Done (Phase 5):** Payments, staff-selected allocations with FIFO
+    suggestions, concurrency-safe centre-scoped receipt numbering, advance
+    credit, refunds, reversals, audit events, and controlled fee-plan
+    reassignment.
 6.  Student ledger, collection/outstanding reports, audit trail, security review, tests, and deployment.
 
 ## Security note
@@ -234,16 +237,20 @@ taxable value 1,67,500 plus GST 30,150), the six-component plan structure
 `COURSE` components summing to INR 1,86,650), approved-plan versioning,
 and the due-date request/approval roles.
 
+Resolved in Phase 5: centre-scoped receipt format
+`GIIMS/{CENTRE_CODE}/{FYyy-yy}/{000001}`, FIFO-suggested staff-selected
+allocation with advance credit for excess, `ACCOUNTS` draft plan editing
+(approval stays with `ADMIN`/`MANAGEMENT`), mandatory-reason reassignment
+approval by `ADMIN`/`MANAGEMENT`, and refund/reversal approval roles.
+
 Still to confirm before the related workflows:
 
--   Receipt number scope and format.
--   Whether `ACCOUNTS` may create or edit draft fee plans (currently
-    `ADMIN`/`MANAGEMENT` only).
--   The authorised process for reassigning an existing admission to a
-    corrected fee structure.
--   Partial-payment allocation policy (oldest-due-first versus
-    staff-selected).
--   Advance-payment, refund, and reversal policies.
+-   The canonical payment-mode list, cheque/DD clearance behaviour, and
+    whether a refund can ever bypass the advance-credit ledger.
+-   Whether `ADMIN`/`MANAGEMENT` may approve their own refund, reversal, or
+    reassignment request (four-eyes approval).
+-   Whether reversal should remain blocked after an approved reassignment.
+-   Receipt printing/PDF layout and refund settlement references.
 -   Academic year boundaries and the batch naming convention.
 -   Roles and cross-centre visibility beyond the current model.
 -   Hosting, private document storage, and backup retention.

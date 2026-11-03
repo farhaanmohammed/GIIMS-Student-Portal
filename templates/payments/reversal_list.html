@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Reversal Requests - GIIMS Student Portal{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="text-sm text-gray-500">
+        <a href="{% url 'payments:payment_list' %}" class="text-indigo-600 hover:text-indigo-900">Payments</a>
+        / Reversals
+      </p>
+      <h1 class="mt-1 text-2xl font-semibold text-gray-900">Pending payment reversals</h1>
+      <p class="mt-1 text-sm text-gray-500">Approval preserves the original payment and receipt and posts compensating entries. Nothing is deleted.</p>
+    </div>
+    <a href="{% url 'payments:payment_list' %}" class="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-50">Back to payments</a>
+  </div>
+
+  {% if messages %}
+    <div class="mb-4 space-y-2">
+      {% for message in messages %}
+        <div class="rounded-md px-4 py-3 text-sm {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200{% else %}bg-green-50 text-green-800 border border-green-200{% endif %}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Collection centre</th>
+            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested</th>
+            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Decision</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {% for reversal in reversals %}
+            <tr>
+              <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <a href="{% url 'payments:payment_detail' reversal.payment_id %}" class="text-indigo-600 hover:text-indigo-900">
+                  {{ reversal.payment.receipt.number|default:"Payment #" }}{% if not reversal.payment.receipt %}{{ reversal.payment_id }}{% endif %}
+                </a>
+                <span class="block text-xs text-gray-400">Paid {{ reversal.payment.paid_on|date:"d M Y" }}</span>
+              </td>
+              <td class="px-4 py-4 text-sm text-gray-900">
+                {{ reversal.payment.admission.student.get_full_name }}
+                <span class="block text-xs text-gray-500">{{ reversal.payment.admission.student.student_id|default:"No student ID" }}</span>
+                <span class="block text-xs text-gray-400">Admission: {{ reversal.payment.admission.centre.code }}</span>
+              </td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{{ reversal.payment.centre.code }}</td>
+              <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">{{ reversal.amount|floatformat:2 }}</td>
+              <td class="px-4 py-4 text-sm text-gray-600 max-w-xs">{{ reversal.reason }}</td>
+              <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                {{ reversal.requested_by }}
+                <span class="block text-xs text-gray-400">{{ reversal.requested_at|date:"d M Y H:i" }}</span>
+              </td>
+              <td class="px-4 py-4 text-sm">
+                <form method="post" action="{% url 'payments:reversal_decide' reversal.pk %}" class="space-y-2 min-w-56">
+                  {% csrf_token %}
+                  <fieldset>
+                    <legend class="text-xs font-medium text-gray-700">Decision for reversal #{{ reversal.pk }}</legend>
+                    <div class="mt-1 flex gap-4">
+                      <label class="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                        <input type="radio" name="decision" value="approve" id="reversal-{{ reversal.pk }}-approve" class="text-indigo-600 focus:ring-indigo-600">
+                        Approve
+                      </label>
+                      <label class="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                        <input type="radio" name="decision" value="reject" id="reversal-{{ reversal.pk }}-reject" class="text-indigo-600 focus:ring-indigo-600">
+                        Reject
+                      </label>
+                    </div>
+                  </fieldset>
+                  <div>
+                    <label for="reversal-{{ reversal.pk }}-note" class="block text-xs text-gray-600">Decision note (optional)</label>
+                    <textarea id="reversal-{{ reversal.pk }}-note" name="note" rows="2" class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"></textarea>
+                  </div>
+                  <button type="submit" class="w-full px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700" hx-disabled-elt="this">
+                    Submit decision
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">
+                No payment reversals are awaiting approval.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <nav class="mt-4 flex items-center justify-between" aria-label="Reversal request pagination">
+      <a class="px-3 py-2 rounded-md border text-sm {% if not page_obj.has_previous %}pointer-events-none opacity-40{% endif %}"
+         href="?page={{ page_obj.previous_page_number }}">
+        Previous
+      </a>
+      <span class="text-sm text-gray-600">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      <a class="px-3 py-2 rounded-md border text-sm {% if not page_obj.has_next %}pointer-events-none opacity-40{% endif %}"
+         href="?page={{ page_obj.next_page_number }}">
+        Next
+      </a>
+    </nav>
+  {% endif %}
+</div>
+{% endblock %}
