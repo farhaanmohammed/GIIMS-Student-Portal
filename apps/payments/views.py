@@ -15,6 +15,7 @@ from django.views.generic import DetailView, ListView
 
 from apps.admissions.models import Admission
 from apps.core.permissions import role_required
+from apps.fees.models import FeePlan
 from apps.fees.selectors import admission_fee_summary, current_fee_plan, installment_outstanding
 from apps.payments.forms import (
     CreditApplicationForm,
@@ -199,7 +200,35 @@ class PaymentCreateView(LoginRequiredMixin, RoleRequiredViewMixin, View):
         }
 
     def get(self, request: HttpRequest) -> HttpResponse:
-        admission = _get_admission_for_user(request.user, request.GET.get("admission"))
+        raw_admission = request.GET.get("admission")
+        if not raw_admission:
+            query = (request.GET.get("q") or "").strip()[:100]
+            admissions = (
+                Admission.objects.for_user(request.user)
+                .filter(
+                    status=Admission.Status.ENROLLED,
+                    fee_plans__status=FeePlan.Status.APPROVED,
+                )
+                .select_related("student", "centre", "course", "batch")
+                .distinct()
+                .order_by("student__first_name", "student__last_name", "-pk")
+            )
+            if query:
+                admissions = admissions.filter(
+                    Q(student__student_id__icontains=query)
+                    | Q(student__first_name__icontains=query)
+                    | Q(student__last_name__icontains=query)
+                    | Q(student__phone__icontains=query)
+                    | Q(course__code__icontains=query)
+                    | Q(batch__code__icontains=query)
+                )
+            return render(
+                request,
+                "payments/select_admission.html",
+                {"admissions": admissions[:50], "query": query},
+            )
+
+        admission = _get_admission_for_user(request.user, raw_admission)
         if admission is None:
             messages.error(request, "Select an enrollment before recording a payment.")
             return redirect("payments:payment_list")
