@@ -523,3 +523,15 @@ class Phase6ReportsAndReceiptsTestCase(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, "92000.00")
         self.assertNotContains(res, "Presentation-Only Demo Notice")
+
+    def test_payment_create_without_admission_renders_scoped_enrollment_picker(self):
+        url = reverse("payments:payment_create")
+        self.client.force_login(self.accounts_kochi)
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Rahul Nair")
+        self.assertNotContains(res, "Ananya Menon")
+
+        # ADMISSIONS role is still forbidden
+        self.client.force_login(self.admissions_kochi)
+        self.assertEqual(self.client.get(url).status_code, 403)
